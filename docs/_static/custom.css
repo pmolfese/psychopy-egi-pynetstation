@@ -1,0 +1,35 @@
+:root {
+  --egi-teal: #0b7f7a;
+  --egi-blue: #2574a9;
+}
+
+div.body {
+  max-width: 940px;
+}
+
+div.body h1,
+div.body h2,
+div.body h3 {
+  color: var(--egi-blue);
+}
+
+a,
+a:visited {
+  color: var(--egi-teal);
+}
+
+table.docutils td,
+table.docutils th {
+  vertical-align: top;
+}
+
+.workflow {
+  border-left: 4px solid var(--egi-teal);
+  padding-left: 1rem;
+}
+
+@media (max-width: 875px) {
+  div.body {
+    max-width: none;
+  }
+}

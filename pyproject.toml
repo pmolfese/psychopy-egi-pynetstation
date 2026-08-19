@@ -46,6 +46,9 @@ tests = [
   "psychopy>=2026.1",
   "pytest>=8",
 ]
+docs = [
+  "sphinx>=7,<9",
+]
 
 [project.entry-points."psychopy.hardware"]
 EGINetStation = "psychopy_egi_pynetstation.hardware.netstation:EGINetStation"

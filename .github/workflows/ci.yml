@@ -58,6 +58,33 @@ jobs:
       - name: Run the complete test suite
         run: python -m pytest -q
 
+  documentation:
+    name: Build Sphinx documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install documentation dependencies
+        run: python -m pip install --editable ".[docs]"
+
+      - name: Build HTML documentation with warnings as errors
+        run: python -m sphinx -W --keep-going -b html docs docs/_build/html
+
+      - name: Upload rendered documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: sphinx-html
+          path: docs/_build/html/
+          if-no-files-found: error
+
   package:
     name: Build and inspect distributions
     runs-on: ubuntu-latest
@@ -87,4 +114,3 @@ jobs:
           name: distributions
           path: dist/
           if-no-files-found: error
-

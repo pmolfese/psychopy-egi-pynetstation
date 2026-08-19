@@ -264,6 +264,19 @@ the Connect Component writes an end-of-experiment check that reports any failure
 - **Clock synchronization fails:** confirm the amplifier NTP IP is reachable
   from the experiment computer.
 
+## Documentation
+
+The complete documentation includes a tab-by-tab reference for every Builder
+Component option, a guided experiment setup, the Python API, display-timing
+guidance, and troubleshooting. Build it locally with:
+
+```bash
+python -m pip install -e ".[docs]"
+python -m sphinx -W --keep-going -b html docs docs/_build/html
+```
+
+Open `docs/_build/html/index.html` in a browser after the build completes.
+
 ## Development
 
 Run the test suite and verify the distributable files with:

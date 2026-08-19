@@ -55,6 +55,8 @@ network library internally.
 
 ## Builder quick start
 
+![EGI Components in PsychoPy Builder's EEG panel](https://raw.githubusercontent.com/pmolfese/psychopy-egi-pynetstation/main/images/1-components.png)
+
 Add the Components to the Flow in this order, keeping the default Device label
 `netstation` on all of them:
 

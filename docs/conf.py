@@ -48,6 +48,7 @@ release = __version__
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx_rtd_theme",
 ]
 
 templates_path = ["_templates"]
@@ -55,15 +56,14 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 source_suffix = ".rst"
 root_doc = "index"
 
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 html_title = f"{project} {release}"
 html_theme_options = {
-    "description": "PsychoPy Builder and Python support for EGI/Magstim NetStation",
-    "fixed_sidebar": True,
-    "github_button": True,
-    "github_user": "pmolfese",
-    "github_repo": "psychopy-egi-pynetstation",
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+    "sticky_navigation": True,
 }
 
 autodoc_member_order = "bysource"

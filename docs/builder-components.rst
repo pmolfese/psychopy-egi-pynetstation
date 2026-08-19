@@ -196,8 +196,11 @@ Data tab
        This is not the event-specific **Sync to screen refresh** setting on
        EGI Send Event.
 
-At experiment end, EGI Connect also generates a check of asynchronous event
-errors. Any failures are reported through PsychoPy's error logger.
+At experiment end, EGI Connect safely stops an active recording, flushes queued
+events, reports asynchronous failures, and disconnects. The same idempotent
+cleanup is registered for early exits such as Escape. Explicit Stop Recording
+and Disconnect Components are still recommended because they define the precise
+recording endpoint rather than relying on shutdown cleanup.
 
 EGI Start Recording
 -------------------

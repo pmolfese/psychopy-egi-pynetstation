@@ -355,6 +355,9 @@ class NetStationInitComponent(BaseComponent):
             "        debug=%(debug)s,\n"
             "        errorLog=%(errorLog)s or None,\n"
             "    )\n"
+            "_%(name)sCleanupDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
+            "if _%(name)sCleanupDevice.close not in runAtExit:\n"
+            "    runAtExit.append(_%(name)sCleanupDevice.close)\n"
         )
         buff.writeIndentedLines(code % inits)
 
@@ -430,19 +433,16 @@ class NetStationInitComponent(BaseComponent):
 
     def writeExperimentEndCode(self, buff):
         """
-        Event sends are asynchronous and can't raise into experiment code, so surface
-        any failures at the end of the run rather than letting them vanish.
+        Flush events and close safely on normal completion.
+
+        The same idempotent callback is also in ``runAtExit`` so an early Escape
+        takes this path through PsychoPy's ``endExperiment`` function.
         """
         inits = getInitVals(self.params)
         code = (
-            "# report any NetStation events which failed to send\n"
+            "# stop recording, flush queued events, and disconnect safely\n"
             "_%(name)sDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
             "if _%(name)sDevice is not None:\n"
-            "    _%(name)sErrors = _%(name)sDevice.eventErrors()\n"
-            "    if _%(name)sErrors:\n"
-            "        logging.error(\n"
-            "            f'{len(_%(name)sErrors)} NetStation events failed to send: '\n"
-            "            f'{_%(name)sErrors[:3]}'\n"
-            "        )\n"
+            "    _%(name)sDevice.close()\n"
         )
         buff.writeIndentedLines(code % inits)

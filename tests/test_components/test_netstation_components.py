@@ -81,7 +81,8 @@ def test_connect_component_registers_device_and_connects(routine):
     assert "deviceClass='psychopy_egi_pynetstation.hardware.netstation.EGINetStation'" in script
     assert "deviceName='netstation'" in script
     assert "ip='10.0.0.42'" in script
-    assert "egiConnect = deviceManager.getDevice('netstation')" in script
+    assert "_egiConnectDevice = deviceManager.getDevice('netstation')" in script
+    assert "egiConnect = _NetStationComponentState(" in script
     assert "egiConnect.connect()" in script
 
 
@@ -137,8 +138,47 @@ def test_connect_component_writes_connect_call(routine):
 
     script = routine.exp.writeScript(expPath=None)
 
-    assert "egiConnect = deviceManager.getDevice('netstation')" in script
+    assert "_egiConnectDevice = deviceManager.getDevice('netstation')" in script
+    assert "egiConnect = _NetStationComponentState(" in script
     assert "egiConnect.connect()" in script
+
+
+def test_components_in_one_routine_get_independent_lifecycle_state(routine):
+    components = [
+        EGIConnectComponent(
+            routine.exp, routine.name,
+            name="egiConnect", deviceLabel="netstation", measureRefresh=False,
+        ),
+        EGIStartRecordingComponent(
+            routine.exp, routine.name,
+            name="egiStartRecording", deviceLabel="netstation", startVal=1.0,
+        ),
+        EGISendEventComponent(
+            routine.exp, routine.name,
+            name="egiSendEvent", deviceLabel="netstation", startVal=2.0,
+            eventType="stim",
+        ),
+    ]
+    for component in components:
+        routine.addComponent(component)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert (
+        "from psychopy_egi_pynetstation.component_state import "
+        "NetStationComponentState as _NetStationComponentState"
+    ) in script
+    for name in ("egiConnect", "egiStartRecording", "egiSendEvent"):
+        assert f"_{name}Device = deviceManager.getDevice('netstation')" in script
+        assert f"{name} = _NetStationComponentState(" in script
+        assert f"_{name}Device, status=NOT_STARTED" in script
+    # Connect and Begin Recording may block. Re-reading the Routine clocks lets
+    # an overdue later marker still run in the current loop iteration rather
+    # than being skipped when the Routine deadline is reached.
+    assert script.count(
+        "# refresh Routine clocks after the blocking NetStation command"
+    ) == 2
+    compile(script, "<generated EGI script>", "exec")
 
 
 def test_connect_component_uses_default_lab_addresses(routine):
@@ -307,8 +347,9 @@ def test_connect_component_translates_drift_mode(routine, mode, autoDrift, backg
     assert f"autoDrift={autoDrift}" in script
     assert f"autoDriftBackground={background}" in script
     assert "ntpIP='10.10.10.51'" in script
-    # event sends are async and can't raise, so the run must report failures
-    assert ".eventErrors()" in script
+    # normal and early experiment exits must both reach idempotent cleanup
+    assert "runAtExit.append(_egiConnectCleanupDevice.close)" in script
+    assert "_egiConnectDevice.close()" in script
 
 
 def test_connect_component_defaults_to_background_drift(routine):

@@ -25,6 +25,7 @@ class EgiSendEventComponent(NetStationCommandComponent):
     tooltip = "EGI Send Event: send an event marker to a NetStation amplifier"
     version = "0.1.0"
     beta = False
+    commandMayBlock = False
 
     def __init__(
         self, exp, parentName,
@@ -147,7 +148,6 @@ class EgiSendEventComponent(NetStationCommandComponent):
                 ")\n"
             )
         buff.writeIndentedLines(code % inits)
-
 
 EGISendEventComponent = EgiSendEventComponent
 NetStationSendEventComponent = EgiSendEventComponent

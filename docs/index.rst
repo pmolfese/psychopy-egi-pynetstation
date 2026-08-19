@@ -10,9 +10,16 @@ with NetStation's ECI server through ``egi-pynetstation``.
    :align: center
    :width: 360px
 
-The plugin provides five Builder Components under **I/O > EEG**. Network
-settings live in **EGI Connect**; no PsychoPy Device Manager configuration or
-amplifier auto-discovery is required.
+Use the plugin through five Builder Components under **I/O > EEG**, through a
+direct Python ``EGINetStation`` instance, or through PsychoPy's Device Manager.
+Builder network settings live in **EGI Connect**; no Device Manager
+configuration or amplifier auto-discovery is required for that interface.
+
+Automatic clock-drift correction is enabled by default. After the initial NTP
+synchronization, the plugin samples the amplifier clock on a background thread
+and corrects event timestamps on the client side as the clocks drift apart. No
+extra Builder Component or Coder call is required; advanced users can disable
+or configure the behavior through EGI Connect or the Python API.
 
 .. important::
 
@@ -28,7 +35,7 @@ Start here
 * :doc:`getting-started` — install the plugin and build a minimal experiment.
 * :doc:`builder-components` — understand every option shown in the GUI.
 * :doc:`timing` — choose flip synchronization and understand display timing.
-* :doc:`python-api` — control NetStation from a Python experiment.
+* :doc:`python-api` — use the plugin from PsychoPy Coder or another Python experiment.
 * :doc:`troubleshooting` — diagnose common setup and runtime problems.
 
 .. toctree::

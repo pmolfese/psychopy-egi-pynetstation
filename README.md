@@ -5,10 +5,10 @@ event markers to [PsychoPy](https://www.psychopy.org/) Builder and Python
 experiments. It uses the NetStation ECI network protocol through the
 [egi-pynetstation](https://github.com/nimh-sfim/egi-pynetstation) package.
 
-The plugin provides five Builder Components for connecting, starting and
-stopping recording, sending events, and disconnecting. Network settings are
-entered directly in **EGI Connect**. No physical device selection or prior
-PsychoPy Device Manager configuration is required.
+Use the plugin in any of three ways: with five Builder Components, by directly
+constructing the Python hardware wrapper, or through PsychoPy's Device Manager.
+Builder requires no physical device selection or prior Device Manager
+configuration.
 
 > **Validation status:** version 0.1.0 is the initial public-release candidate. Automated
 > tests cover the wrapper API, generated Builder code, event defaults, and
@@ -78,7 +78,44 @@ to retrieve one network connection. It is plain text, not a device to select
 from Device Manager. NetStation amplifiers are not auto-discovered, so an empty
 Device Manager list is expected.
 
-## Python usage
+## PsychoPy Coder / Python quick start
+
+Builder is optional. In PsychoPy Coder—or any Python experiment using a
+PsychoPy window—the smallest setup is to import and construct the hardware
+wrapper directly. Explicit plugin activation is not required:
+
+```python
+from psychopy import visual
+from psychopy_egi_pynetstation import EGINetStation
+
+win = visual.Window()
+ns = EGINetStation(
+    ip="10.10.10.42",     # NetStation host computer
+    ntpIP="10.10.10.51",  # amplifier NTP server
+    port=55513,            # ECI port
+)
+try:
+    ns.connect()
+    ns.beginRecording()
+
+    # Mark stimulus onset on the flip that actually shows it.
+    win.callOnFlip(
+        ns.sendEvent,
+        eventType="stim",
+        label="face",
+        duration=0.1,
+    )
+    win.flip()
+finally:
+    # Stops an active recording, flushes queued events, and disconnects.
+    ns.close()
+    win.close()
+```
+
+### Coder with PsychoPy DeviceManager
+
+If the Coder experiment already uses PsychoPy's device registry, replace the
+direct `EGINetStation(...)` construction above with:
 
 ```python
 from psychopy.hardware import DeviceManager
@@ -86,29 +123,35 @@ from psychopy.hardware import DeviceManager
 ns = DeviceManager.addDevice(
     deviceClass="psychopy_egi_pynetstation.hardware.netstation.EGINetStation",
     deviceName="netstation",
-    ip="10.10.10.42",     # NetStation host computer
-    ntpIP="10.10.10.51",  # amplifier NTP server
-    port=55513,            # ECI port
+    ip="10.10.10.42",
+    ntpIP="10.10.10.51",
+    port=55513,
 )
-
-ns.connect()
-ns.beginRecording()
-
-# Mark stimulus onset on the flip that actually shows it.
-win.callOnFlip(
-    ns.sendEvent,
-    eventType="stim",
-    label="face",
-    duration=0.1,
-)
-win.flip()
-
-ns.endRecording()
-ns.disconnect()
 ```
 
-Event sending is asynchronous. Check `ns.eventErrors()` before accepting a run;
-the Builder integration performs this check automatically at experiment end.
+This returns the same `EGINetStation` interface, so the remaining
+`connect()`/`beginRecording()`/`sendEvent()`/`close()` code is unchanged. The
+device can later be retrieved with
+`DeviceManager.getDevice("netstation")`.
+
+### Why `EGINetStation` instead of `NetStation`?
+
+The underlying [`egi-pynetstation`](https://github.com/nimh-sfim/egi-pynetstation)
+package calls its low-level network client `NetStation`:
+
+```python
+from egi_pynetstation import NetStation
+```
+
+This plugin calls its PsychoPy-compatible wrapper `EGINetStation` to distinguish
+the two classes when both packages appear in the same program. It is still the
+same EGI/Magstim NetStation hardware; the `EGI` prefix identifies the wrapper,
+which adds PsychoPy `BaseDevice`, Builder, logging, drift, and cleanup behavior.
+
+Event sending is asynchronous. `close()` flushes queued events and reports any
+send failures through PsychoPy's logger. You can also inspect
+`ns.eventErrors()` directly before accepting a run. The Builder integration
+performs the same safe cleanup automatically at experiment end.
 
 ## Builder Components
 

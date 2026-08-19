@@ -8,7 +8,10 @@ from psychopy_egi_pynetstation.components.netStationInit import (
     DEFAULT_PORT,
     NetStationInitComponent,
 )
-from psychopy_egi_pynetstation.components._base import normalizeNetStationStartValue
+from psychopy_egi_pynetstation.components._base import (
+    normalizeNetStationStartValue,
+    writeNetStationTimingRefresh,
+)
 
 
 class EgiConnectComponent(NetStationInitComponent):
@@ -72,17 +75,19 @@ class EgiConnectComponent(NetStationInitComponent):
 
     def writeInitCode(self, buff):
         """
-        Register this Component's NetStation device and keep a local handle for the
-        momentary connect command.
+        Register the device and give this Component independent lifecycle state.
         """
         NetStationInitComponent.writeInitCode(self, buff)
         inits = getInitVals(self.params)
         code = (
-            "%(name)s = deviceManager.getDevice(%(deviceLabel)s)\n"
-            "if %(name)s is None:\n"
+            "_%(name)sDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
+            "if _%(name)sDevice is None:\n"
             "    raise ValueError(\n"
             "        \"No NetStation device found for Device label %(deviceLabel)s.\"\n"
             "    )\n"
+            "%(name)s = _NetStationComponentState(\n"
+            "    _%(name)sDevice, status=NOT_STARTED\n"
+            ")\n"
         )
         buff.writeIndentedLines(code % inits)
 
@@ -103,6 +108,7 @@ class EgiConnectComponent(NetStationInitComponent):
         indented = self.writeStartTestCode(buff)
         if indented:
             self.writeCommandCode(buff)
+            writeNetStationTimingRefresh(buff)
             buff.setIndentLevel(-indented, relative=True)
 
 

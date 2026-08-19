@@ -23,6 +23,14 @@ project uses semantic versioning after the initial `0.x` development series.
 
 - NetStation network configuration lives entirely in EGI Connect. The shared
   Device label is plain text and requires no Device Manager configuration.
+- Builder Components now keep independent lifecycle state while sharing one
+  NetStation connection, so multiple EGI commands in a Routine do not suppress
+  one another.
+- Blocking connection and recording commands refresh Builder's Routine clocks,
+  preventing later commands from being skipped when network setup crosses a
+  scheduled onset.
+- Normal and early experiment exits safely stop an active recording, flush
+  queued events, report asynchronous failures, and disconnect.
 
 ### Known limitations
 
@@ -30,4 +38,3 @@ project uses semantic versioning after the initial `0.x` development series.
   is still in progress.
 - NetStation amplifiers are not auto-discovered; users enter the network
   addresses explicitly.
-

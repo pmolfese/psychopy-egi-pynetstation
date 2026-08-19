@@ -117,6 +117,8 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self.autoDriftMinPause = autoDriftMinPause
         self.autoDriftBackground = autoDriftBackground
         self._connected = False
+        self._recording = False
+        self._reportedEventErrors = 0
         self._netstation = NetStation(
             ip, self.port, endian=endian, debug=debug, error_log=errorLog
         )
@@ -152,6 +154,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         """
         self._netstation.disconnect()
         self._connected = False
+        self._recording = False
 
     # --- recording ---
 
@@ -161,6 +164,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         establishes the event timestamp epoch, so it requires an NTP IP.
         """
         self._netstation.begin_rec()
+        self._recording = True
 
     def endRecording(self):
         """
@@ -168,6 +172,38 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         first, so markers sent just beforehand still arrive.
         """
         self._netstation.end_rec()
+        self._recording = False
+
+    def close(self):
+        """
+        Safely finish recording, flush events, and close the connection.
+
+        This is idempotent and is registered as an experiment-exit callback by
+        the Builder Component. Explicit Stop Recording and Disconnect Components
+        remain useful for choosing the precise endpoint; this method is the safety
+        net for normal completion, Escape, and partially configured experiments.
+        Cleanup failures are logged rather than masking experiment shutdown.
+        """
+        if self._connected and self._recording:
+            try:
+                self.endRecording()
+            except Exception as err:
+                logging.error(f"Could not stop NetStation recording: {err}")
+
+        if self._connected:
+            try:
+                self.disconnect()
+            except Exception as err:
+                logging.error(f"Could not disconnect from NetStation: {err}")
+
+        errors = self.eventErrors()
+        newErrors = errors[self._reportedEventErrors:]
+        self._reportedEventErrors = len(errors)
+        if newErrors:
+            logging.error(
+                f"{len(newErrors)} NetStation events failed to send: "
+                f"{newErrors[:3]}"
+            )
 
     # --- events ---
 

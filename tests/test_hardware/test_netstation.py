@@ -6,6 +6,7 @@ pytest.importorskip("psychopy.hardware.base")
 from egi_pynetstation.exceptions import NetStationUnconnected  # noqa: E402
 
 from psychopy_egi_pynetstation.hardware.netstation import EGINetStation  # noqa: E402
+from psychopy_egi_pynetstation import EGINetStation as PublicEGINetStation  # noqa: E402
 
 
 @pytest.fixture
@@ -17,9 +18,14 @@ def device():
 
 def test_construct_does_not_connect(device):
     assert device._connected is False
+    assert device._recording is False
     assert device.ip == "127.0.0.1"
     assert device.port == 55513
     assert device.ntpIP == "10.10.10.51"
+
+
+def test_wrapper_is_available_from_short_public_import():
+    assert PublicEGINetStation is EGINetStation
 
 
 def test_construct_normalizes_float_port_for_socket():
@@ -136,6 +142,34 @@ def test_event_bookkeeping_works_before_connecting(device):
     assert device.pendingEvents() == 0
 
 
+def test_close_stops_recording_then_disconnects(device):
+    from unittest import mock
+
+    device._connected = True
+    device._recording = True
+    calls = []
+    with mock.patch.object(
+        device._netstation, "end_rec", side_effect=lambda: calls.append("stop")
+    ), mock.patch.object(
+        device._netstation,
+        "disconnect",
+        side_effect=lambda: calls.append("disconnect"),
+    ):
+        device.close()
+        device.close()
+
+    assert calls == ["stop", "disconnect"]
+    assert device._connected is False
+    assert device._recording is False
+
+
+def test_close_is_safe_before_connecting(device):
+    device.close()
+
+    assert device._connected is False
+    assert device._recording is False
+
+
 def test_drift_calls_require_connection(device):
     # both are @check_connected upstream
     with pytest.raises(NetStationUnconnected):
@@ -148,7 +182,7 @@ def test_drift_calls_require_connection(device):
 def test_wrapper_exposes_expected_api():
     # guard against silently losing a method the Builder Components call
     for name in (
-        "connect", "disconnect",
+        "connect", "disconnect", "close",
         "beginRecording", "endRecording",
         "sendEvent", "flushEvents", "pendingEvents", "eventErrors",
         "resync", "configureAutoDrift", "sampleDriftIfDue", "sampleDrift",

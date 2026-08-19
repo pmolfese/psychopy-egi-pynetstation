@@ -23,6 +23,11 @@ def addNetStationDeviceLabel(component, deviceLabel="netstation"):
     # Configuration lives in EGI Connect. DeviceManager is only the runtime
     # registry through which the other EGI Components retrieve that client.
     component.exp.requirePsychopyLibs(['hardware'])
+    component.exp.requireImport(
+        importName="NetStationComponentState",
+        importFrom="psychopy_egi_pynetstation.component_state",
+        importAs="_NetStationComponentState",
+    )
     component.order += ["deviceLabel"]
     component.params['deviceLabel'] = NetStationDeviceLabelParam(
         deviceLabel,
@@ -53,6 +58,17 @@ def normalizeNetStationStartValue(component):
         param.val = str(int(text, 10))
 
 
+def writeNetStationTimingRefresh(buff):
+    """Refresh Builder's frame clocks after a blocking network command."""
+    code = (
+        "# refresh Routine clocks after the blocking NetStation command\n"
+        "t = routineTimer.getTime()\n"
+        "tThisFlip = win.getFutureFlipTime(clock=routineTimer)\n"
+        "tThisFlipGlobal = win.getFutureFlipTime(clock=None)\n"
+    )
+    buff.writeIndentedLines(code)
+
+
 class NetStationCommandComponent(BaseComponent):
     """
     Base class for NetStation Components which send a single one-off command (e.g.
@@ -62,6 +78,8 @@ class NetStationCommandComponent(BaseComponent):
     code which send their particular command. The command fires once, when the
     Component starts - its stop time/duration is not used.
     """
+    commandMayBlock = True
+
     def __init__(
         self, exp, parentName,
         name='',
@@ -84,18 +102,24 @@ class NetStationCommandComponent(BaseComponent):
 
     def writeInitCode(self, buff):
         """
-        Fetch a handle to the already-registered NetStation device for this Component's
-        Device label, raising a clear error if none is found.
+        Wrap the registered device in lifecycle state private to this Component.
+
+        The hardware connection is shared, but PsychoPy's ``status`` and timing
+        attributes must not be: multiple NetStation Components can coexist in one
+        Routine and start independently.
         """
         inits = getInitVals(self.params)
         code = (
-            "%(name)s = deviceManager.getDevice(%(deviceLabel)s)\n"
-            "if %(name)s is None:\n"
+            "_%(name)sDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
+            "if _%(name)sDevice is None:\n"
             "    raise ValueError(\n"
             "        \"No NetStation device found for Device label %(deviceLabel)s - be \"\n"
             "        \"sure to add an EGI Connect Component with the same \"\n"
             "        \"Device label, before this Component.\"\n"
             "    )\n"
+            "%(name)s = _NetStationComponentState(\n"
+            "    _%(name)sDevice, status=NOT_STARTED\n"
+            ")\n"
         )
         buff.writeIndentedLines(code % inits)
 
@@ -121,4 +145,6 @@ class NetStationCommandComponent(BaseComponent):
         indented = self.writeStartTestCode(buff)
         if indented:
             self.writeCommandCode(buff)
+            if self.commandMayBlock:
+                writeNetStationTimingRefresh(buff)
             buff.setIndentLevel(-indented, relative=True)

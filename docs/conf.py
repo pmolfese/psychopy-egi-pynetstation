@@ -41,7 +41,6 @@ except ImportError:  # pragma: no cover
 
 project = "PsychoPy EGI NetStation"
 author = "Peter J. Molfese, NIH CMN"
-copyright = "2026, Peter J. Molfese, NIH CMN"
 version = __version__
 release = __version__
 
@@ -60,6 +59,10 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_title = f"{project} {release}"
+# The documentation is a United States Government work prepared as part of
+# official duties. Do not let Sphinx render its default "© Copyright" claim;
+# the project footer template supplies the applicable 17 U.S.C. § 105 notice.
+html_show_copyright = False
 html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 4,

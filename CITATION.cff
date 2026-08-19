@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: >-
+  If this software supports your research, please cite it and acknowledge the
+  NIH Center for Multimodal Neuroimaging and the underlying egi-pynetstation
+  package.
+title: PsychoPy EGI NetStation
+type: software
+authors:
+  - family-names: Molfese
+    given-names: Peter J.
+    affiliation: NIH Center for Multimodal Neuroimaging
+    email: peter.molfese@nih.gov
+version: 0.1.0
+repository-code: https://github.com/pmolfese/psychopy-egi-pynetstation
+url: https://github.com/pmolfese/psychopy-egi-pynetstation
+abstract: >-
+  A PsychoPy plugin for controlling EGI/Magstim NetStation recording and
+  sending synchronized event markers through the ECI network protocol.
+keywords:
+  - PsychoPy
+  - EEG
+  - EGI
+  - Magstim
+  - NetStation
+  - ECI
+

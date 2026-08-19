@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psychopy-egi-pynetstation"
+version = "0.1.0"
+description = "PsychoPy plugin adding support for EGI/Magstim NetStation EEG amplifiers via egi-pynetstation"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Peter J. Molfese, NIH CMN", email = "peter.molfese@nih.gov" },
+]
+license = "LicenseRef-US-Government-Work-Public-Domain-US-MIT-Elsewhere"
+license-files = ["LICENSE"]
+keywords = ["PsychoPy", "EEG", "EGI", "Magstim", "NetStation", "ECI"]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  # 2.0.0 is the first release with the always-async event sender and
+  # automatic drift sampling on connect(); 1.x had neither.
+  # tests/test_hardware/test_api_compatibility.py fails loudly if the
+  # upstream signatures ever drift away from what the wrapper passes.
+  "egi_pynetstation>=2.0.0",
+]
+
+[project.urls]
+homepage = "https://github.com/pmolfese/psychopy-egi-pynetstation"
+repository = "https://github.com/pmolfese/psychopy-egi-pynetstation"
+documentation = "https://github.com/pmolfese/psychopy-egi-pynetstation#readme"
+issues = "https://github.com/pmolfese/psychopy-egi-pynetstation/issues"
+changelog = "https://github.com/pmolfese/psychopy-egi-pynetstation/blob/main/CHANGELOG.md"
+upstream = "https://github.com/nimh-sfim/egi-pynetstation"
+organization = "https://cmn.nimh.nih.gov"
+
+[project.optional-dependencies]
+tests = [
+  "psychopy>=2026.1",
+  "pytest>=8",
+]
+
+[project.entry-points."psychopy.hardware"]
+EGINetStation = "psychopy_egi_pynetstation.hardware.netstation:EGINetStation"
+
+[project.entry-points."psychopy.experiment.components"]
+EgiConnectComponent = "psychopy_egi_pynetstation.components.netStationConnect:EgiConnectComponent"
+EgiDisconnectComponent = "psychopy_egi_pynetstation.components.netStationDisconnect:EgiDisconnectComponent"
+EgiStartRecordingComponent = "psychopy_egi_pynetstation.components.netStationStartRecording:EgiStartRecordingComponent"
+EgiStopRecordingComponent = "psychopy_egi_pynetstation.components.netStationStopRecording:EgiStopRecordingComponent"
+EgiSendEventComponent = "psychopy_egi_pynetstation.components.netStationSendEvent:EgiSendEventComponent"
+
+[tool.setuptools.package-data]
+"*" = ["*.png", "*.svg"]
+
+[tool.setuptools.packages.find]
+exclude = ["tests*"]

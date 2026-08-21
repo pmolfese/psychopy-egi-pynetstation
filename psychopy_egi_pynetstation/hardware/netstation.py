@@ -62,7 +62,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
 
     Notes
     -----
-    Event sending is always asynchronous in egi-pynetstation >= 2.1:
+    Event sending is always asynchronous in egi-pynetstation >= 2.0.0:
     `sendEvent()` captures its timestamp on the calling thread and returns
     in microseconds, which is what makes it safe inside `win.callOnFlip()`.
     Because a failed send can't raise into experiment code, failures are

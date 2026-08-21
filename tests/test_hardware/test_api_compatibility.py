@@ -7,9 +7,6 @@ one of those keywords, nothing fails until an experiment actually runs - and
 because most of these need a live amplifier, the rest of the test suite won't
 catch it either. These tests check the installed package's signatures directly,
 so that class of breakage fails loudly at test time instead.
-
-This is not hypothetical: egi-pynetstation dropped `connect(async_events=...)`
-after 2.0.0, which silently broke every connect() the plugin made.
 """
 import inspect
 

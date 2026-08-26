@@ -59,6 +59,10 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         If True, print ECI command and response bytes.
     errorLog : str
         Optional path for a JSON-lines log of ECI errors.
+    strictECI : bool
+        If True, rejected or malformed ECI responses raise from blocking
+        calls. Asynchronous event sends still cannot raise into experiment
+        code; their failures are collected for end-of-session reporting.
 
     Notes
     -----
@@ -66,7 +70,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
     `sendEvent()` captures its timestamp on the calling thread and returns
     in microseconds, which is what makes it safe inside `win.callOnFlip()`.
     Because a failed send can't raise into experiment code, failures are
-    collected - check `eventErrors()` at the end of a run.
+    collected - check `sessionSummary()` at the end of a run.
 
     Examples
     --------
@@ -104,6 +108,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         autoDriftBackground=True,
         debug=False,
         errorLog=None,
+        strictECI=False,
     ):
         self.ip = ip
         # PsychoPy's numeric Builder params can arrive as floats (for example
@@ -116,9 +121,12 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self.autoDriftInterval = autoDriftInterval
         self.autoDriftMinPause = autoDriftMinPause
         self.autoDriftBackground = autoDriftBackground
+        self.strictECI = strictECI
         self._connected = False
         self._recording = False
-        self._reportedEventErrors = 0
+        self._sessionStarted = False
+        self._sessionRecorded = False
+        self._sessionReported = True
         self._netstation = NetStation(
             ip, self.port, endian=endian, debug=debug, error_log=errorLog
         )
@@ -143,8 +151,12 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
             auto_drift_interval=self.autoDriftInterval,
             auto_drift_min_pause=self.autoDriftMinPause,
             auto_drift_background=self.autoDriftBackground,
+            strict_eci=self.strictECI,
         )
         self._connected = True
+        self._sessionStarted = True
+        self._sessionRecorded = False
+        self._sessionReported = False
         logging.info(f"Connected to NetStation at {self.ip}:{self.port}")
 
     def disconnect(self):
@@ -155,6 +167,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self._netstation.disconnect()
         self._connected = False
         self._recording = False
+        self._reportSession()
 
     # --- recording ---
 
@@ -165,6 +178,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         """
         self._netstation.begin_rec()
         self._recording = True
+        self._sessionRecorded = True
 
     def endRecording(self):
         """
@@ -196,13 +210,51 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
             except Exception as err:
                 logging.error(f"Could not disconnect from NetStation: {err}")
 
-        errors = self.eventErrors()
-        newErrors = errors[self._reportedEventErrors:]
-        self._reportedEventErrors = len(errors)
-        if newErrors:
+        self._reportSession()
+
+    def _reportSession(self):
+        """Log one complete health report for the current connection."""
+        if not self._sessionStarted or self._sessionReported:
+            return
+
+        try:
+            eventErrors = self.eventErrors()
+            eciErrors = self.eciErrors()
+            summary = self.sessionSummary()
+        except Exception as err:
+            logging.warning(f"Could not inspect NetStation session health: {err}")
+            return
+        self._sessionReported = True
+
+        logging.info(f"NetStation session summary: {summary}")
+
+        if eventErrors:
             logging.error(
-                f"{len(newErrors)} NetStation events failed to send: "
-                f"{newErrors[:3]}"
+                f"{len(eventErrors)} NetStation asynchronous event sends failed: "
+                f"{eventErrors[:3]}"
+            )
+        eciErrorCount = summary.get("eci_response_failures", len(eciErrors))
+        if eciErrorCount:
+            logging.error(
+                f"{eciErrorCount} NetStation ECI responses failed: "
+                f"{eciErrors[:3]}"
+            )
+
+        if not self._sessionRecorded or not self.driftCorrection:
+            return
+        if summary.get("drift_stalled"):
+            logging.error("NetStation drift correction stalled during the session.")
+        if summary.get("ntp_sampling_stale"):
+            logging.error("NetStation NTP drift sampling was stale at session end.")
+        elif not summary.get("drift_engaged"):
+            logging.warning(
+                "NetStation drift correction did not collect enough history to "
+                "engage during this session."
+            )
+        if summary.get("ntp_sample_failures"):
+            logging.warning(
+                f"NetStation recorded {summary['ntp_sample_failures']} failed "
+                "NTP drift sample requests during the session."
             )
 
     # --- events ---
@@ -272,11 +324,35 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
 
     def eventErrors(self):
         """
-        Errors raised while sending asynchronous events. Asynchronous sends
-        can't raise into experiment code, so failures are collected here
-        instead. An empty list means every event was sent successfully.
+        Exceptions raised by the asynchronous event worker. Rejected or
+        malformed amplifier responses are reported separately by
+        `eciErrors()`. With strict handling enabled, the same response can
+        also appear here because it raised in the worker.
         """
         return self._netstation.event_errors()
+
+    def eciErrors(self):
+        """
+        Rejected or malformed ECI responses recorded instead of raised.
+        """
+        return self._netstation.eci_errors()
+
+    def sessionSummary(self):
+        """
+        One-call summary of event delivery, ECI responses, and clock health.
+        """
+        return self._netstation.session_summary()
+
+    def setStrictECI(self, enabled=True):
+        """
+        Choose whether failed ECI responses raise from blocking calls.
+
+        Asynchronous sends cannot raise into experiment code. With strict
+        handling enabled, those response failures are also collected by
+        `eventErrors()` when they raise in the worker.
+        """
+        self.strictECI = self._netstation.set_strict_eci(enabled=enabled)
+        return self.strictECI
 
     # --- clock / drift ---
 
@@ -350,6 +426,12 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         Current drift model estimate, as a dict.
         """
         return self._netstation.drift_estimate()
+
+    def driftSettings(self):
+        """
+        Every drift setting currently in effect, as a dict.
+        """
+        return self._netstation.drift_settings()
 
     def clockState(self):
         """

@@ -41,9 +41,20 @@ No event markers arrive
 -----------------------
 
 Start recording before sending markers. Ensure **Event type** is exactly four
-characters and inspect the PsychoPy log at experiment end for asynchronous
-event errors. Stop recording or disconnect cleanly so queued events can flush.
-For detailed diagnostics, set a writable **ECI error log file** in EGI Connect.
+characters and inspect the PsychoPy log at experiment end for both
+asynchronous worker failures and rejected ECI responses. Stop recording or
+disconnect cleanly so queued events can flush. For detailed diagnostics, set a
+writable **ECI error log file** and optionally enable **Strict ECI responses**
+in EGI Connect. Coder experiments can inspect ``sessionSummary()``,
+``eventErrors()``, and ``eciErrors()`` directly.
+
+“This connection has already recorded”
+--------------------------------------
+
+One connection supports one recording epoch because starting again would
+rebase the event clock. Stop recording, disconnect, reconnect, and then start
+the next recording. Do not place a second EGI Start Recording Component before
+an intervening EGI Disconnect and EGI Connect pair.
 
 Markers do not align with a visual stimulus
 --------------------------------------------

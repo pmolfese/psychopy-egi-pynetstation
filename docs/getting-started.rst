@@ -81,6 +81,10 @@ net which stops an active recording, flushes events, and disconnects on normal o
 early experiment exit. Keep the explicit Stop Recording and Disconnect Components
 to control exactly when those actions occur.
 
+One connection supports one recording epoch. If an experiment genuinely needs
+another recording, stop and disconnect the first session, reconnect, and only
+then start the next recording.
+
 .. _coder-quick-start:
 
 Coder quick start
@@ -151,5 +155,8 @@ Before collecting data:
 * send a four-character test event and verify its label and duration in
   NetStation;
 * stop recording and disconnect cleanly so queued asynchronous events flush;
-* inspect the PsychoPy log for ``NetStation events failed to send``; and
+* inspect the PsychoPy log for asynchronous send failures, rejected ECI
+  responses, and drift-health warnings;
+* inspect ``ns.sessionSummary()`` in Coder experiments when deciding whether to
+  accept a run; and
 * validate the workflow using non-production data on the actual lab network.

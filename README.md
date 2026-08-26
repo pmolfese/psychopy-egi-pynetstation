@@ -5,6 +5,13 @@ event markers to [PsychoPy](https://www.psychopy.org/) Builder and Python
 experiments. It uses the NetStation ECI network protocol through the
 [egi-pynetstation](https://github.com/nimh-sfim/egi-pynetstation) package.
 
+> [!NOTE]
+> **Independent community project**
+>
+> This plugin is not associated with, affiliated with, endorsed by, or
+> sponsored by EGI or Magstim EGI. It is an independent, community-maintained
+> solution for using NetStation with PsychoPy.
+
 Use the plugin in any of three ways: with five Builder Components, by directly
 constructing the Python hardware wrapper, or through PsychoPy's Device Manager.
 Builder requires no physical device selection or prior Device Manager
@@ -148,10 +155,12 @@ the two classes when both packages appear in the same program. It is still the
 same EGI/Magstim NetStation hardware; the `EGI` prefix identifies the wrapper,
 which adds PsychoPy `BaseDevice`, Builder, logging, drift, and cleanup behavior.
 
-Event sending is asynchronous. `close()` flushes queued events and reports any
-send failures through PsychoPy's logger. You can also inspect
-`ns.eventErrors()` directly before accepting a run. The Builder integration
-performs the same safe cleanup automatically at experiment end.
+Event sending is asynchronous. `close()` flushes queued events and reports
+worker failures, rejected ECI responses, and drift-health problems through
+PsychoPy's logger. Use `ns.sessionSummary()` for the combined result;
+`ns.eventErrors()` and `ns.eciErrors()` provide the two failure categories
+separately. The Builder integration performs the same safe cleanup
+automatically at experiment end.
 
 ## Builder Components
 
@@ -167,14 +176,17 @@ time/duration is not used):
    Component. Add exactly one of these per amplifier, before any other NetStation
    Component.
 2. **EGI Start Recording** - starts EEG recording, and performs the ECI NTP sync
-   which establishes the event timestamp epoch.
+   which establishes the event timestamp epoch. One connection supports one
+   recording epoch; disconnect and reconnect before starting another.
 3. **EGI Stop Recording** - stops EEG recording (flushing queued events first).
 4. **EGI Disconnect** - closes the connection (flushing queued events first).
 5. **EGI Send Event** - sends a single event marker (4-character **Event
    type**, plus optional label/description/extra data). **Event duration** defaults
    to `0.1` seconds. With **Sync to screen refresh** on (the default) the marker is
    sent from `win.callOnFlip()`, so it is timestamped to the flip which actually
-   showed the stimulus.
+   showed the stimulus. Its optional **Target visual Component** selector binds
+   the marker to a named visual Component's first drawing flip; place the marker
+   below that target in the Routine.
 
 All five share a **Device label** text parameter (default `"netstation"`) - Start/Stop
 Recording, Disconnect and Send Event all look up the network client that Connect
@@ -289,9 +301,16 @@ framesFor(3.0, framePeriod)      # 180 frames, for frame-based scheduling
 ### Asynchronous events
 
 Event sending is unconditionally asynchronous upstream, which is what makes
-flip-synced markers safe. A failed send therefore cannot raise into experiment code, so
-the Connect Component writes an end-of-experiment check that reports any failures via
-`logging.error` - bad runs don't pass silently.
+flip-synced markers safe. A failed send therefore cannot raise into experiment
+code. Cleanup reports both asynchronous worker failures and ECI responses that
+the amplifier rejected or returned malformed. `sessionSummary()` combines
+those results with drift and NTP health; `eventErrors()` and `eciErrors()`
+provide the underlying failure lists.
+
+For diagnostic sessions, EGI Connect's **Strict ECI responses** option makes
+failed responses raise from blocking calls. Asynchronous callbacks still
+cannot raise into the experiment thread, so their failures remain available in
+the cleanup report.
 
 ## Troubleshooting
 
@@ -303,7 +322,8 @@ the Connect Component writes an end-of-experiment check that reports any failure
   port are correct, both computers can reach each other, and local firewall
   rules allow the connection.
 - **No event markers arrive:** start recording before sending events and inspect
-  the experiment log for asynchronous event errors.
+  the experiment log for asynchronous worker failures and rejected ECI
+  responses.
 - **Clock synchronization fails:** confirm the amplifier NTP IP is reachable
   from the experiment computer.
 

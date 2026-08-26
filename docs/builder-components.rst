@@ -163,7 +163,7 @@ Data tab
 ~~~~~~~~
 
 .. image:: ../images/4-connect_3.png
-   :alt: EGI Connect Data tab showing debug logging and standard PsychoPy timing options
+   :alt: EGI Connect Data tab showing ECI diagnostics and standard PsychoPy timing options
    :align: center
    :width: 760px
 
@@ -185,6 +185,12 @@ Data tab
        errors there and, when refresh measurement is enabled, adds a
        ``display_timing`` record. Ensure the destination is writable and does
        not expose participant or machine-sensitive paths.
+   * - **Strict ECI responses**
+     - off
+     - Makes rejected or malformed responses raise from blocking calls. An
+       asynchronous marker cannot raise into the experiment thread, so its
+       failure is still reported during cleanup. Leave this off for normal
+       collection and enable it for diagnostic sessions.
    * - **Save onset/offset times**
      - on
      - Standard PsychoPy data logging for this Component. See the common
@@ -197,9 +203,10 @@ Data tab
        EGI Send Event.
 
 At experiment end, EGI Connect safely stops an active recording, flushes queued
-events, reports asynchronous failures, and disconnects. The same idempotent
-cleanup is registered for early exits such as Escape. Explicit Stop Recording
-and Disconnect Components are still recommended because they define the precise
+events, reports asynchronous worker failures, rejected ECI responses, and
+drift-health problems, then disconnects. The same idempotent cleanup is
+registered for early exits such as Escape. Explicit Stop Recording and
+Disconnect Components are still recommended because they define the precise
 recording endpoint rather than relying on shutdown cleanup.
 
 EGI Start Recording
@@ -210,6 +217,10 @@ also performs the ECI NTP synchronization that establishes the event timestamp
 epoch. Its only plugin-specific setting is **Device label**; all other visible
 fields are the common PsychoPy fields described above.
 
+One connection supports one recording epoch. To start another recording, first
+stop and disconnect the current session, then reconnect before the next EGI
+Start Recording Component runs.
+
 EGI Send Event
 --------------
 
@@ -219,10 +230,24 @@ for each distinct marker point, or use Builder variables in its fields.
 Basic tab
 ~~~~~~~~~
 
-.. image:: ../images/5-sendEvents.png
-   :alt: EGI Send Event Basic tab showing marker type, label, description, and duration
+.. figure:: ../images/6-send-event-target.png
+   :alt: EGI Send Event Basic tab with no target visual Component selected
    :align: center
    :width: 760px
+
+   With **Use this marker's Start settings** selected, the marker uses its own
+   Start fields. This is the default and preserves the original scheduling
+   behavior.
+
+.. figure:: ../images/7-send-event-target-menu.png
+   :alt: EGI Send Event target selector offering one Text Component named textStim
+   :align: center
+   :width: 760px
+
+   The target menu lists eligible visual Components in the same Routine. This
+   example contains only one visual Component, so ``textStim (Text)`` is the
+   only possible marker target. Experiments with several visual Components
+   show each one by its Builder name and Component type.
 
 .. list-table:: EGI Send Event Basic options
    :header-rows: 1
@@ -231,6 +256,14 @@ Basic tab
    * - Option
      - Default
      - Meaning
+   * - **Target visual Component**
+     - Use this marker's Start settings
+     - Optionally binds the marker to the first drawing flip of a visual
+       Component in the same Routine. Put EGI Send Event below the selected
+       target. Selecting a target disables the marker's own Start controls
+       because the target supplies the onset; binding is always flip
+       synchronized regardless of the flip-sync setting. Invalid, disabled, or
+       unsafely ordered targets stop code generation with an explanatory error.
    * - **Event type**
      - ``stim``
      - The main NetStation event identifier. It must contain exactly four
@@ -283,6 +316,9 @@ Device and Data tabs
 Event sending is asynchronous, including inside the screen-flip callback. The
 marker timestamp is captured immediately and network transmission happens
 without blocking the display flip.
+
+See :doc:`timing` for the equivalent Code Component pattern and an explanation
+of how target status, Component order, and ``callOnFlip`` work together.
 
 EGI Stop Recording
 ------------------

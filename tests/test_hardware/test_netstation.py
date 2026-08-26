@@ -111,6 +111,31 @@ def test_drift_defaults_are_background(device):
     assert cooperative.autoDriftBackground is False
 
 
+def test_wrapper_defaults_match_upstream_drift_settings(device):
+    settings = device.driftSettings()
+
+    assert device.driftCorrection == settings["drift_correction"]
+    assert device.autoDrift == settings["auto_drift"]
+    assert device.autoDriftInterval == settings["auto_drift_interval"]
+    assert device.autoDriftMinPause == settings["auto_drift_min_pause"]
+    assert device.autoDriftBackground == settings["auto_drift_background"]
+
+
+def test_connect_forwards_strict_eci(device):
+    from unittest import mock
+
+    device.strictECI = True
+    device._sessionRecorded = True
+    device._sessionReported = True
+    with mock.patch.object(device._netstation, "connect") as connect:
+        device.connect()
+
+    assert connect.call_args.kwargs["strict_eci"] is True
+    assert device._sessionStarted is True
+    assert device._sessionRecorded is False
+    assert device._sessionReported is False
+
+
 @pytest.mark.parametrize("kwargs", [
     {},                                                    # background
     {"autoDriftBackground": False},                        # cooperative
@@ -139,7 +164,87 @@ def test_event_bookkeeping_works_before_connecting(device):
     # these aren't @check_connected upstream, so they're safe to call at any
     # point - including the end-of-experiment error report
     assert device.eventErrors() == []
+    assert device.eciErrors() == []
     assert device.pendingEvents() == 0
+
+
+def test_diagnostic_wrappers_delegate_upstream(device):
+    from unittest import mock
+
+    with mock.patch.object(
+        device._netstation, "session_summary", return_value={"ok": True}
+    ), mock.patch.object(
+        device._netstation, "drift_settings", return_value={"auto_drift": True}
+    ), mock.patch.object(
+        device._netstation, "set_strict_eci", return_value=True
+    ) as set_strict:
+        assert device.sessionSummary() == {"ok": True}
+        assert device.driftSettings() == {"auto_drift": True}
+        assert device.setStrictECI(False) is True
+
+    set_strict.assert_called_once_with(enabled=False)
+    assert device.strictECI is True
+
+
+def test_session_report_includes_eci_failures_once(device):
+    from unittest import mock
+    import psychopy_egi_pynetstation.hardware.netstation as wrapper_module
+
+    device._sessionStarted = True
+    device._sessionRecorded = True
+    device._sessionReported = False
+    summary = {
+        "ok": False,
+        "drift_engaged": True,
+        "drift_stalled": False,
+        "event_send_failures": 0,
+        "eci_response_failures": 1,
+        "ntp_sampling_stale": False,
+        "ntp_sample_failures": 0,
+    }
+    failure = {"cmd": "EventData", "error": "ECIFailure"}
+
+    with mock.patch.object(device._netstation, "event_errors", return_value=[]), \
+            mock.patch.object(
+                device._netstation, "eci_errors", return_value=[failure]
+            ), mock.patch.object(
+                device._netstation, "session_summary", return_value=summary
+            ), mock.patch.object(wrapper_module.logging, "error") as log_error:
+        device._reportSession()
+        device._reportSession()
+
+    assert log_error.call_count == 1
+    assert "ECI responses failed" in log_error.call_args.args[0]
+
+
+def test_drift_disabled_session_does_not_log_health_failure(device):
+    from unittest import mock
+    import psychopy_egi_pynetstation.hardware.netstation as wrapper_module
+
+    device.driftCorrection = False
+    device._sessionStarted = True
+    device._sessionRecorded = True
+    device._sessionReported = False
+    summary = {
+        "ok": False,
+        "drift_engaged": False,
+        "drift_stalled": False,
+        "event_send_failures": 0,
+        "eci_response_failures": 0,
+        "ntp_sampling_stale": True,
+        "ntp_sample_failures": 0,
+    }
+
+    with mock.patch.object(device._netstation, "event_errors", return_value=[]), \
+            mock.patch.object(device._netstation, "eci_errors", return_value=[]), \
+            mock.patch.object(
+                device._netstation, "session_summary", return_value=summary
+            ), mock.patch.object(wrapper_module.logging, "error") as log_error, \
+            mock.patch.object(wrapper_module.logging, "warning") as log_warning:
+        device._reportSession()
+
+    log_error.assert_not_called()
+    log_warning.assert_not_called()
 
 
 def test_close_stops_recording_then_disconnects(device):
@@ -184,8 +289,10 @@ def test_wrapper_exposes_expected_api():
     for name in (
         "connect", "disconnect", "close",
         "beginRecording", "endRecording",
-        "sendEvent", "flushEvents", "pendingEvents", "eventErrors",
+        "sendEvent", "flushEvents", "pendingEvents", "eventErrors", "eciErrors",
+        "sessionSummary", "setStrictECI",
         "resync", "configureAutoDrift", "sampleDriftIfDue", "sampleDrift",
-        "driftEstimate", "clockState", "getTime", "timeAtMonotonic",
+        "driftEstimate", "driftSettings", "clockState", "getTime",
+        "timeAtMonotonic",
     ):
         assert callable(getattr(EGINetStation, name, None)), name

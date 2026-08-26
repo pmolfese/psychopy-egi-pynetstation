@@ -23,19 +23,21 @@ REQUIRED_KWARGS = {
         "drift_correction",
         "auto_drift", "auto_drift_interval",
         "auto_drift_min_pause", "auto_drift_background",
+        "strict_eci",
     },
     "send_event": {"start", "duration", "event_type", "label", "desc", "data", "wait"},
     "sample_drift": {"samples", "spacing"},
     "sample_drift_if_due": {"available_pause"},
     "configure_auto_drift": {"enabled", "interval", "min_pause", "background"},
+    "set_strict_eci": {"enabled"},
     "flush_events": {"timeout"},
 }
 
 # methods the wrapper calls with no arguments
 REQUIRED_METHODS = [
     "disconnect", "begin_rec", "end_rec",
-    "pending_events", "event_errors",
-    "resync", "drift_estimate", "clock_state",
+    "pending_events", "event_errors", "eci_errors", "session_summary",
+    "resync", "drift_estimate", "drift_settings", "clock_state",
     "getTime", "time_at_monotonic",
 ]
 

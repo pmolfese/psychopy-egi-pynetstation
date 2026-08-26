@@ -55,14 +55,18 @@ docs = [
 EGINetStation = "psychopy_egi_pynetstation.hardware.netstation:EGINetStation"
 
 [project.entry-points."psychopy.experiment.components"]
-EgiConnectComponent = "psychopy_egi_pynetstation.components.netStationConnect:EgiConnectComponent"
-EgiDisconnectComponent = "psychopy_egi_pynetstation.components.netStationDisconnect:EgiDisconnectComponent"
-EgiStartRecordingComponent = "psychopy_egi_pynetstation.components.netStationStartRecording:EgiStartRecordingComponent"
-EgiStopRecordingComponent = "psychopy_egi_pynetstation.components.netStationStopRecording:EgiStopRecordingComponent"
-EgiSendEventComponent = "psychopy_egi_pynetstation.components.netStationSendEvent:EgiSendEventComponent"
+EGIConnectComponent = "psychopy_egi_pynetstation.components.netStationConnect:EGIConnectComponent"
+EGIDisconnectComponent = "psychopy_egi_pynetstation.components.netStationDisconnect:EGIDisconnectComponent"
+EGIStartRecordingComponent = "psychopy_egi_pynetstation.components.netStationStartRecording:EGIStartRecordingComponent"
+EGIStopRecordingComponent = "psychopy_egi_pynetstation.components.netStationStopRecording:EGIStopRecordingComponent"
+EGISendEventComponent = "psychopy_egi_pynetstation.components.netStationSendEvent:EGISendEventComponent"
+
+[tool.setuptools]
+include-package-data = false
 
 [tool.setuptools.package-data]
 "*" = ["*.png", "*.svg"]
 
 [tool.setuptools.packages.find]
+include = ["psychopy_egi_pynetstation*"]
 exclude = ["tests*"]

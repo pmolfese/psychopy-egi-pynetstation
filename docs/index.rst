@@ -5,6 +5,14 @@ PsychoPy EGI NetStation
 and event markers to PsychoPy Builder and Python experiments. It communicates
 with NetStation's ECI server through ``egi-pynetstation``.
 
+.. note::
+
+   **Independent community project**
+
+   This plugin is not associated with, affiliated with, endorsed by, or
+   sponsored by EGI or Magstim EGI. It is an independent, community-maintained
+   solution for using NetStation with PsychoPy.
+
 .. image:: ../images/1-components.png
    :alt: EGI Connect, Disconnect, Send Event, Start Recording, and Stop Recording in PsychoPy Builder's EEG component panel
    :align: center

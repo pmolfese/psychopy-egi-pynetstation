@@ -19,19 +19,26 @@ from psychopy_egi_pynetstation.components.netStationInit import (  # noqa: E402
 )
 from psychopy_egi_pynetstation.components.netStationConnect import (  # noqa: E402
     EGIConnectComponent,
+    EgiConnectComponent,
 )
 from psychopy_egi_pynetstation.components.netStationDisconnect import (  # noqa: E402
     EGIDisconnectComponent,
+    EgiDisconnectComponent,
 )
 from psychopy_egi_pynetstation.components.netStationStartRecording import (  # noqa: E402
     EGIStartRecordingComponent,
+    EgiStartRecordingComponent,
 )
 from psychopy_egi_pynetstation.components.netStationStopRecording import (  # noqa: E402
     EGIStopRecordingComponent,
+    EgiStopRecordingComponent,
 )
 from psychopy_egi_pynetstation.components.netStationSendEvent import (  # noqa: E402
     EGISendEventComponent,
+    EgiSendEventComponent,
 )
+from psychopy.experiment.components.text import TextComponent  # noqa: E402
+from psychopy.experiment.utils import CodeGenerationException  # noqa: E402
 
 
 @pytest.fixture
@@ -50,19 +57,36 @@ def test_plugin_exposes_only_visible_builder_components():
     }
 
     assert names == {
-        "EgiConnectComponent",
-        "EgiStartRecordingComponent",
-        "EgiStopRecordingComponent",
-        "EgiDisconnectComponent",
-        "EgiSendEventComponent",
+        "EGIConnectComponent",
+        "EGIStartRecordingComponent",
+        "EGIStopRecordingComponent",
+        "EGIDisconnectComponent",
+        "EGISendEventComponent",
     }
 
 
-def test_builder_component_names_include_egi_word_break():
+def test_builder_component_names_use_uppercase_egi():
     from psychopy.tools import stringtools as st
 
-    assert st.CaseSwitcher.pascal2title(EGIConnectComponent.__name__).startswith("Egi Connect")
-    assert st.CaseSwitcher.pascal2title(EGISendEventComponent.__name__).startswith("Egi Send Event")
+    for component_class in (
+        EGIConnectComponent,
+        EGIStartRecordingComponent,
+        EGIStopRecordingComponent,
+        EGIDisconnectComponent,
+        EGISendEventComponent,
+    ):
+        label = component_class.__name__.removesuffix("Component")
+        label = st.CaseSwitcher.pascal2title(label)
+        assert label.startswith("EGI")
+        assert not label.startswith("Egi")
+
+
+def test_previous_component_class_names_remain_importable():
+    assert EgiConnectComponent is EGIConnectComponent
+    assert EgiStartRecordingComponent is EGIStartRecordingComponent
+    assert EgiStopRecordingComponent is EGIStopRecordingComponent
+    assert EgiDisconnectComponent is EGIDisconnectComponent
+    assert EgiSendEventComponent is EGISendEventComponent
 
 
 def test_connect_component_registers_device_and_connects(routine):
@@ -323,6 +347,121 @@ def test_send_event_component_direct_call_when_not_syncing(routine):
     assert "start='now'" in script
 
 
+def test_send_event_target_selector_lists_visual_components_only(routine):
+    stimulus = TextComponent(
+        routine.exp, routine.name,
+        name="stimulus",
+        text="hello",
+    )
+    connect = EGIConnectComponent(
+        routine.exp, routine.name,
+        name="egiConnect",
+        measureRefresh=False,
+    )
+    marker = EGISendEventComponent(
+        routine.exp, routine.name,
+        name="egiSendEvent",
+    )
+    for component in (stimulus, connect, marker):
+        routine.addComponent(component)
+
+    assert marker.getTargetComponentVals() == ["", "stimulus"]
+    assert marker.getTargetComponentLabels() == [
+        "Use this marker's Start settings",
+        "stimulus (Text)",
+    ]
+    assert {
+        "dependsOn": "targetComponent",
+        "condition": "!= ''",
+        "param": "start",
+        "true": "disable",
+        "false": "enable",
+    } in marker.depends
+
+
+def test_send_event_can_bind_to_visual_component_start(routine):
+    stimulus = TextComponent(
+        routine.exp, routine.name,
+        name="stimulus",
+        text="hello",
+        startVal=1.5,
+    )
+    marker = EGISendEventComponent(
+        routine.exp, routine.name,
+        name="egiSendEvent",
+        targetComponent="stimulus",
+        startVal=99,
+        syncScreenRefresh=False,
+        eventType="stim",
+    )
+    routine.addComponent(stimulus)
+    routine.addComponent(marker)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert (
+        "if egiSendEvent.status == NOT_STARTED and "
+        "stimulus.status == STARTED:" in script
+    )
+    assert "# queue this marker on the first flip which draws stimulus" in script
+    assert "win.callOnFlip(" in script
+    assert "egiSendEvent.sendEvent," in script
+    assert "thisExp.timestampOnFlip(win, 'egiSendEvent.started')" in script
+    assert "tThisFlip >= 99-frameTolerance" not in script
+    assert "start='now'" not in script
+    compile(script, "<generated target-bound EGI script>", "exec")
+
+
+def test_send_event_rejects_target_below_marker(routine):
+    marker = EGISendEventComponent(
+        routine.exp, routine.name,
+        name="egiSendEvent",
+        targetComponent="stimulus",
+    )
+    stimulus = TextComponent(
+        routine.exp, routine.name,
+        name="stimulus",
+        text="hello",
+    )
+    routine.addComponent(marker)
+    routine.addComponent(stimulus)
+
+    with pytest.raises(CodeGenerationException, match="must be below its target"):
+        routine.exp.writeScript(expPath=None)
+
+
+def test_send_event_rejects_missing_target(routine):
+    marker = EGISendEventComponent(
+        routine.exp, routine.name,
+        name="egiSendEvent",
+        targetComponent="renamedStimulus",
+    )
+    routine.addComponent(marker)
+
+    with pytest.raises(CodeGenerationException, match="does not exist"):
+        routine.exp.writeScript(expPath=None)
+
+
+def test_send_event_rejects_disabled_target(routine):
+    stimulus = TextComponent(
+        routine.exp, routine.name,
+        name="stimulus",
+        text="hello",
+    )
+    stimulus.params["disabled"].val = True
+    marker = EGISendEventComponent(
+        routine.exp, routine.name,
+        name="egiSendEvent",
+        targetComponent="stimulus",
+    )
+    routine.addComponent(stimulus)
+    routine.addComponent(marker)
+
+    assert marker.getTargetComponentVals() == [""]
+    with pytest.raises(CodeGenerationException, match="is disabled"):
+        routine.exp.writeScript(expPath=None)
+
+
 # --- Connect: drift modes ---
 
 
@@ -365,6 +504,23 @@ def test_connect_component_defaults_to_background_drift(routine):
 
     assert "autoDrift=True" in script
     assert "autoDriftBackground=True" in script
+
+
+@pytest.mark.parametrize("strict,expected", [(False, "False"), (True, "True")])
+def test_connect_component_forwards_strict_eci(routine, strict, expected):
+    comp = EGIConnectComponent(
+        routine.exp, routine.name,
+        name="egiConnect",
+        deviceLabel="netstation",
+        strictECI=strict,
+        measureRefresh=False,
+    )
+    routine.addComponent(comp)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert f"strictECI={expected}" in script
+    assert comp.params["strictECI"].categ == "Data"
 
 
 def test_connect_component_no_longer_passes_async_events(routine):

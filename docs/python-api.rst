@@ -85,8 +85,30 @@ to the flip that actually presents the stimulus.
 ``sendEvent`` is asynchronous by default. ``endRecording`` and ``disconnect``
 flush queued events, and ``close`` safely performs both operations when needed.
 A transmission failure cannot raise back into the original flip callback;
-``close`` reports failures through PsychoPy's logger, and ``eventErrors()``
-provides the collected exceptions for programmatic inspection.
+``close`` reports failures through PsychoPy's logger. ``sessionSummary()`` is
+the primary programmatic check, while ``eventErrors()`` returns asynchronous
+worker exceptions and ``eciErrors()`` returns rejected or malformed ECI
+responses.
+
+Session diagnostics
+-------------------
+
+The combined summary remains available after disconnect::
+
+   summary = ns.sessionSummary()
+   if not summary["ok"]:
+       print(summary)
+
+Use ``ns.driftSettings()`` to record every drift setting that was actually in
+effect. For a diagnostic session, construct the wrapper with
+``strictECI=True`` or call ``ns.setStrictECI(True)`` after connecting. Strict
+mode makes failed responses raise from blocking calls; asynchronous sends
+still report their failures during cleanup.
+
+One connection supports one recording epoch. To record again with the same
+wrapper, call ``endRecording()``, ``disconnect()``, ``connect()``, and then
+``beginRecording()``. A second ``beginRecording()`` on the original connection
+is refused because it would rebase the event timestamp epoch.
 
 Hardware wrapper
 ----------------

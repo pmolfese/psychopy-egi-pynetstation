@@ -3,7 +3,7 @@ from pathlib import Path
 from psychopy_egi_pynetstation.components._base import NetStationCommandComponent
 
 
-class EgiStartRecordingComponent(NetStationCommandComponent):
+class EGIStartRecordingComponent(NetStationCommandComponent):
     """
     Starts EEG recording on a NetStation amplifier when this Component starts.
 
@@ -46,5 +46,5 @@ class EgiStartRecordingComponent(NetStationCommandComponent):
         buff.writeIndentedLines(code % self.params)
 
 
-EGIStartRecordingComponent = EgiStartRecordingComponent
-NetStationStartRecordingComponent = EgiStartRecordingComponent
+EgiStartRecordingComponent = EGIStartRecordingComponent
+NetStationStartRecordingComponent = EGIStartRecordingComponent

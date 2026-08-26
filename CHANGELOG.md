@@ -13,6 +13,8 @@ project uses semantic versioning after the initial `0.x` development series.
 - Flip-synchronized asynchronous event markers with a default duration of
   0.1 seconds.
 - Background clock-drift sampling and event-send error reporting.
+- Session summaries, ECI-response diagnostics, effective drift-setting
+  reports, and optional strict ECI response handling.
 - Display refresh measurement and warnings for frame-beat-prone schedules.
 - Compatibility tests for the upstream `egi-pynetstation` API and generated
   PsychoPy Builder scripts.
@@ -21,6 +23,18 @@ project uses semantic versioning after the initial `0.x` development series.
 
 ### Changed
 
+- Builder widget titles now capitalize `EGI` consistently, while the former
+  mixed-case component imports remain available as compatibility aliases.
+- EGI Send Event can now bind to a selected visual Component in its Routine
+  and queue the marker on that Component's first drawing flip. Unsafe target
+  ordering is rejected instead of silently producing a one-frame delay.
+- Wheel package discovery is restricted to the plugin namespace, preventing
+  generated documentation and build directories from entering release wheels.
+- The documentation and README now identify the plugin as an independent,
+  community-maintained project with no EGI or Magstim EGI affiliation.
+- The timing guide now provides a worked, Builder-specific procedure for
+  interpreting frame-beat warnings and converting visual schedules to frames,
+  with current screenshots of the EGI Send Event target selector.
 - NetStation network configuration lives entirely in EGI Connect. The shared
   Device label is plain text and requires no Device Manager configuration.
 - Builder Components now keep independent lifecycle state while sharing one
@@ -30,7 +44,8 @@ project uses semantic versioning after the initial `0.x` development series.
   preventing later commands from being skipped when network setup crosses a
   scheduled onset.
 - Normal and early experiment exits safely stop an active recording, flush
-  queued events, report asynchronous failures, and disconnect.
+  queued events, report asynchronous and ECI-response failures plus drift
+  health, and disconnect.
 
 ### Known limitations
 

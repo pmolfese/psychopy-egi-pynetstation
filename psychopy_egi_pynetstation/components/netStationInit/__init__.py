@@ -53,6 +53,7 @@ class NetStationInitComponent(BaseComponent):
         # debug
         debug=False,
         errorLog="",
+        strictECI=False,
         # testing
         disabled=False,
     ):
@@ -68,7 +69,7 @@ class NetStationInitComponent(BaseComponent):
         self.type = "NetStationInit"
         self.url = "https://github.com/pmolfese/psychopy-egi-pynetstation"
 
-        # writeExperimentEndCode reports failed event sends via logging
+        # writeExperimentEndCode reports session and timing health via logging
         self.exp.requirePsychopyLibs(['logging'])
         # Display-timing helpers. Requested unconditionally: the import block is
         # written before this Component's init code, and toggling the param in
@@ -202,6 +203,7 @@ class NetStationInitComponent(BaseComponent):
         self.order += [
             "debug",
             "errorLog",
+            "strictECI",
         ]
         self.params['debug'] = Param(
             debug, valType="bool", inputType="bool", categ="Data",
@@ -214,6 +216,16 @@ class NetStationInitComponent(BaseComponent):
             hint=(
                 "Optional path to write a JSON-lines log of ECI errors to. Leave "
                 "blank for no log file."
+            )
+        )
+        self.params['strictECI'] = Param(
+            strictECI, valType="bool", inputType="bool", categ="Data",
+            label="Strict ECI responses",
+            hint=(
+                "Raise when a blocking ECI command receives a rejected or malformed "
+                "response. Asynchronous marker sends cannot raise into experiment "
+                "code; their failures are reported during session cleanup. Leave "
+                "this off for normal data collection and enable it for diagnostics."
             )
         )
 
@@ -354,6 +366,7 @@ class NetStationInitComponent(BaseComponent):
             "        autoDriftBackground=%(autoDriftBackground)s,\n"
             "        debug=%(debug)s,\n"
             "        errorLog=%(errorLog)s or None,\n"
+            "        strictECI=%(strictECI)s,\n"
             "    )\n"
             "_%(name)sCleanupDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
             "if _%(name)sCleanupDevice.close not in runAtExit:\n"

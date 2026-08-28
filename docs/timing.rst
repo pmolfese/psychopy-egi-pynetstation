@@ -77,6 +77,12 @@ the timestamp epoch and the plugin's default background drift correction keeps
 sampling it. Event transmission remains asynchronous, and session cleanup
 reports any worker or ECI-response failure.
 
+When a run should wait for the drift model before the first timing-critical
+event, use EGI Start Recording's **Wait until drift correction is ready** option
+or call ``ns.waitForDrift(timeout=300.0, poll=1.0)`` immediately after
+``beginRecording()``. This is a deliberate setup pause, not a per-trial timing
+operation.
+
 Display refresh and the frame beat
 ----------------------------------
 

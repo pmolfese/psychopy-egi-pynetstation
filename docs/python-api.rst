@@ -90,6 +90,34 @@ the primary programmatic check, while ``eventErrors()`` returns asynchronous
 worker exceptions and ``eciErrors()`` returns rejected or malformed ECI
 responses.
 
+Waiting for drift readiness
+---------------------------
+
+For a diagnostic run, or before a long block whose first events must use the
+drift-corrected clock model, wait after recording starts and before the first
+timing-critical marker:
+
+.. code-block:: python
+
+   def log_drift_wait(state):
+       print("Waiting for drift correction:", state)
+
+   ns.connect()
+   ns.beginRecording()
+   ns.waitForDrift(
+       timeout=300.0,
+       poll=1.0,
+       onWait=log_drift_wait,
+   )
+
+``waitForDrift()`` is the PsychoPy-style wrapper for upstream
+``wait_for_drift(timeout=300.0, poll=1.0, on_wait=None, **ready_options)``.
+The wrapper also exposes ``wait_for_drift()`` as an alias for code copied from
+upstream examples. It blocks deliberately, so call it during setup or a
+planned pre-run pause, never near ``win.flip()`` or inside ``win.callOnFlip``.
+Any extra readiness thresholds accepted by the installed ``egi-pynetstation``
+build can be passed as keyword arguments.
+
 Session diagnostics
 -------------------
 

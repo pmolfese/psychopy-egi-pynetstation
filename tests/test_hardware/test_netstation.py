@@ -98,7 +98,7 @@ def test_send_event_defaults_to_one_tenth_second(device):
     )
 
 
-# --- egi-pynetstation 2.0.0 surface ---
+# --- egi-pynetstation 2.1.0 surface ---
 
 
 def test_drift_defaults_are_background(device):
@@ -284,6 +284,56 @@ def test_drift_calls_require_connection(device):
         device.sampleDriftIfDue(availablePause=1.0)
 
 
+def test_wait_for_drift_delegates_to_upstream(device):
+    from unittest import mock
+
+    with mock.patch.object(
+        device._netstation,
+        "wait_for_drift",
+        create=True,
+        return_value={"ready": True},
+    ) as wait:
+        result = device.waitForDrift(
+            timeout=12.0,
+            poll=0.5,
+            onWait="callback",
+            min_samples=4,
+        )
+
+    assert result == {"ready": True}
+    wait.assert_called_once_with(
+        timeout=12.0,
+        poll=0.5,
+        on_wait="callback",
+        min_samples=4,
+    )
+
+
+def test_wait_for_drift_pythonic_alias_delegates_to_upstream(device):
+    from unittest import mock
+
+    with mock.patch.object(
+        device._netstation,
+        "wait_for_drift",
+        create=True,
+        return_value={"ready": True},
+    ) as wait:
+        result = device.wait_for_drift(
+            timeout=3.0,
+            poll=0.25,
+            on_wait=None,
+            max_delay=0.02,
+        )
+
+    assert result == {"ready": True}
+    wait.assert_called_once_with(
+        timeout=3.0,
+        poll=0.25,
+        on_wait=None,
+        max_delay=0.02,
+    )
+
+
 def test_wrapper_exposes_expected_api():
     # guard against silently losing a method the Builder Components call
     for name in (
@@ -292,7 +342,7 @@ def test_wrapper_exposes_expected_api():
         "sendEvent", "flushEvents", "pendingEvents", "eventErrors", "eciErrors",
         "sessionSummary", "setStrictECI",
         "resync", "configureAutoDrift", "sampleDriftIfDue", "sampleDrift",
-        "driftEstimate", "driftSettings", "clockState", "getTime",
-        "timeAtMonotonic",
+        "waitForDrift", "wait_for_drift", "driftEstimate", "driftSettings",
+        "clockState", "getTime", "timeAtMonotonic",
     ):
         assert callable(getattr(EGINetStation, name, None)), name

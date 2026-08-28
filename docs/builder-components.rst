@@ -214,8 +214,15 @@ EGI Start Recording
 
 Starts EEG recording when its **Start** condition is met. Starting recording
 also performs the ECI NTP synchronization that establishes the event timestamp
-epoch. Its only plugin-specific setting is **Device label**; all other visible
-fields are the common PsychoPy fields described above.
+epoch.
+
+Its **Drift** tab can optionally wait until the upstream drift-correction model
+reports it is ready. Leave **Wait until drift correction is ready** off for the
+normal fast path. Turn it on for a diagnostic run, or for a planned pre-run
+pause before timing-critical events, and choose the maximum wait time plus the
+poll interval. The generated script calls ``waitForDrift(timeout=300.0,
+poll=1.0)`` by default when the option is enabled. Because this can block for
+minutes, do not place the Component where it can run near a visual flip.
 
 One connection supports one recording epoch. To start another recording, first
 stop and disconnect the current session, then reconnect before the next EGI

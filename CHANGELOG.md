@@ -7,12 +7,14 @@ project uses semantic versioning after the initial `0.x` development series.
 
 ### Added
 
-- PsychoPy hardware wrapper around `egi-pynetstation>=2.0.0`.
+- PsychoPy hardware wrapper around `egi-pynetstation>=2.1.0`.
 - EGI Connect, Start Recording, Send Event, Stop Recording, and Disconnect
   Builder Components.
 - Flip-synchronized asynchronous event markers with a default duration of
   0.1 seconds.
 - Background clock-drift sampling and event-send error reporting.
+- Optional drift-readiness waiting through `waitForDrift()` /
+  `wait_for_drift()` and EGI Start Recording's Drift tab.
 - Session summaries, ECI-response diagnostics, effective drift-setting
   reports, and optional strict ECI response handling.
 - Display refresh measurement and warnings for frame-beat-prone schedules.

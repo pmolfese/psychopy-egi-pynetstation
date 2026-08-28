@@ -30,6 +30,7 @@ REQUIRED_KWARGS = {
     "sample_drift_if_due": {"available_pause"},
     "configure_auto_drift": {"enabled", "interval", "min_pause", "background"},
     "set_strict_eci": {"enabled"},
+    "wait_for_drift": {"timeout", "poll", "on_wait"},
     "flush_events": {"timeout"},
 }
 

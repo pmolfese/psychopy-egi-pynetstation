@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from psychopy.experiment.components import Param, getInitVals
+
 from psychopy_egi_pynetstation.components._base import NetStationCommandComponent
 
 
@@ -27,6 +29,10 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
         startEstim='', durationEstim='',
         # device
         deviceLabel="netstation",
+        # drift
+        waitForDrift=False,
+        driftWaitTimeout=300.0,
+        driftWaitPoll=1.0,
         # testing
         disabled=False,
     ):
@@ -40,10 +46,54 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
             disabled=disabled,
         )
         self.type = "EGIStartRecording"
+        self.exp.requirePsychopyLibs(['logging'])
+        self.order += [
+            "waitForDrift",
+            "driftWaitTimeout",
+            "driftWaitPoll",
+        ]
+        self.params['waitForDrift'] = Param(
+            waitForDrift, valType="bool", inputType="bool", categ="Drift",
+            label="Wait until drift correction is ready",
+            hint=(
+                "After starting recording, block until the upstream drift model "
+                "reports it is ready. Use this during setup or a deliberate "
+                "pre-run pause before timing-critical events."
+            ),
+        )
+        self.params['driftWaitTimeout'] = Param(
+            driftWaitTimeout, valType="num", inputType="single", categ="Drift",
+            label="Drift wait timeout (s)",
+            hint="Maximum seconds to wait for drift correction to become ready.",
+        )
+        self.params['driftWaitPoll'] = Param(
+            driftWaitPoll, valType="num", inputType="single", categ="Drift",
+            label="Drift wait poll interval (s)",
+            hint="Seconds between drift-readiness checks while waiting.",
+        )
+        for name in ("driftWaitTimeout", "driftWaitPoll"):
+            self.depends.append({
+                "dependsOn": "waitForDrift",
+                "condition": "== True",
+                "param": name,
+                "true": "enable",
+                "false": "disable",
+            })
 
     def writeCommandCode(self, buff):
+        inits = getInitVals(self.params)
         code = "%(name)s.beginRecording()\n"
-        buff.writeIndentedLines(code % self.params)
+        if self.params['waitForDrift']:
+            code += (
+                "logging.info(\n"
+                "    \"Waiting for NetStation drift correction to become ready.\"\n"
+                ")\n"
+                "%(name)s.waitForDrift(\n"
+                "    timeout=%(driftWaitTimeout)s,\n"
+                "    poll=%(driftWaitPoll)s,\n"
+                ")\n"
+            )
+        buff.writeIndentedLines(code % inits)
 
 
 EgiStartRecordingComponent = EGIStartRecordingComponent

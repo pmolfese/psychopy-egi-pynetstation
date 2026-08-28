@@ -3,7 +3,7 @@ PsychoPy hardware device wrapping `egi_pynetstation.NetStation`, so an
 EGI/Magstim NetStation amplifier can be used via
 `psychopy.hardware.DeviceManager`.
 
-Targets egi-pynetstation >= 2.0.0.
+Targets egi-pynetstation >= 2.1.0.
 """
 
 from psychopy.hardware.base import BaseDevice
@@ -420,6 +420,48 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         command and create no markers in the recording.
         """
         return self._netstation.sample_drift(samples=samples, spacing=spacing)
+
+    def waitForDrift(
+        self, timeout=300.0, poll=1.0, onWait=None, **readyOptions
+    ):
+        """
+        Wait until the upstream drift model reports it is ready.
+
+        Call this after `beginRecording()` and before the first timing-critical
+        marker when a session should not proceed until drift correction has
+        enough clean NTP history. It may block for several minutes, so use it
+        during setup or a deliberate pre-run pause, never near a screen flip.
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum seconds to wait.
+        poll : float
+            Seconds between readiness checks.
+        onWait : callable
+            Optional callback invoked by upstream while waiting.
+        **readyOptions
+            Readiness thresholds passed through to upstream.
+        """
+        return self.wait_for_drift(
+            timeout=timeout,
+            poll=poll,
+            on_wait=onWait,
+            **readyOptions,
+        )
+
+    def wait_for_drift(
+        self, timeout=300.0, poll=1.0, on_wait=None, **ready_options
+    ):
+        """
+        Pythonic alias for `waitForDrift()`, matching upstream naming.
+        """
+        return self._netstation.wait_for_drift(
+            timeout=timeout,
+            poll=poll,
+            on_wait=on_wait,
+            **ready_options,
+        )
 
     def driftEstimate(self):
         """

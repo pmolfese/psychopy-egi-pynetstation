@@ -25,11 +25,12 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  # 2.0.0 is the first release with the always-async event sender and
+  # 2.1.0 is the first release with the Windows timing/drift-readiness API
+  # used by this plugin. 2.0.0 added the always-async event sender and
   # automatic drift sampling on connect(); 1.x had neither.
   # tests/test_hardware/test_api_compatibility.py fails loudly if the
   # upstream signatures ever drift away from what the wrapper passes.
-  "egi_pynetstation>=2.0.0",
+  "egi_pynetstation>=2.1.0",
 ]
 
 [project.urls]

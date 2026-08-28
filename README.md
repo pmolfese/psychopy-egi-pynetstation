@@ -30,7 +30,7 @@ configuration.
 - A network-reachable NetStation host with ECI enabled
 - The NetStation host IP, ECI port (normally `55513`), and amplifier NTP IP
 
-`egi-pynetstation>=2.0.0` is installed automatically with this plugin.
+`egi-pynetstation>=2.1.0` is installed automatically with this plugin.
 
 ## Installation
 
@@ -162,6 +162,22 @@ PsychoPy's logger. Use `ns.sessionSummary()` for the combined result;
 separately. The Builder integration performs the same safe cleanup
 automatically at experiment end.
 
+For a diagnostic run, or before a block whose first markers should wait for an
+engaged drift model, call the upstream-style readiness wait after recording
+starts and before timing-critical events:
+
+```python
+ns.connect()
+ns.beginRecording()
+ns.waitForDrift(timeout=300.0, poll=1.0)
+```
+
+`waitForDrift()` wraps `egi-pynetstation`'s
+`wait_for_drift(timeout=300.0, poll=1.0, on_wait=None, **ready_options)`, and
+the plugin also exposes `wait_for_drift()` for code copied from upstream
+examples. Because it intentionally blocks, use it during setup or a planned
+pre-run pause, never inside `win.callOnFlip()` or near a visual flip.
+
 ## Builder Components
 
 Five Builder Components are also included, under **I/O > EEG** in the Components panel -
@@ -176,8 +192,10 @@ time/duration is not used):
    Component. Add exactly one of these per amplifier, before any other NetStation
    Component.
 2. **EGI Start Recording** - starts EEG recording, and performs the ECI NTP sync
-   which establishes the event timestamp epoch. One connection supports one
-   recording epoch; disconnect and reconnect before starting another.
+   which establishes the event timestamp epoch. It can optionally wait until
+   drift correction is ready before the experiment continues. One connection
+   supports one recording epoch; disconnect and reconnect before starting
+   another.
 3. **EGI Stop Recording** - stops EEG recording (flushing queued events first).
 4. **EGI Disconnect** - closes the connection (flushing queued events first).
 5. **EGI Send Event** - sends a single event marker (4-character **Event

@@ -297,6 +297,30 @@ def test_start_recording_component_writes_begin_recording(routine):
     script = routine.exp.writeScript(expPath=None)
 
     assert "egiStartRecording.beginRecording()" in script
+    assert "egiStartRecording.waitForDrift(" not in script
+
+
+def test_start_recording_component_can_wait_for_drift(routine):
+    comp = EGIStartRecordingComponent(
+        routine.exp, routine.name,
+        name="egiStartRecording",
+        deviceLabel="netstation",
+        waitForDrift=True,
+        driftWaitTimeout=45.0,
+        driftWaitPoll=0.25,
+    )
+    routine.addComponent(comp)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert "egiStartRecording.beginRecording()" in script
+    assert "Waiting for NetStation drift correction to become ready." in script
+    assert "egiStartRecording.waitForDrift(" in script
+    assert "timeout=45.0" in script
+    assert "poll=0.25" in script
+    assert "from psychopy import logging" in script
+    assert comp.params["waitForDrift"].categ == "Drift"
+    compile(script, "<generated drift wait EGI script>", "exec")
 
 
 def test_stop_recording_component_writes_end_recording(routine):

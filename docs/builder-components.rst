@@ -128,6 +128,12 @@ Drift tab
      - Corrects event timestamps for drift between the PsychoPy and amplifier
        clocks. Background mode samples automatically and needs no extra
        Component. ``Off`` disables both correction and sampling.
+   * - **Enable drift warmup**
+     - off
+     - Builds a provisional drift model during the first 20 seconds after
+       connecting. The ordinary model takes over automatically when ready.
+       Enable this if a timing test shows unstable drift near the start of a
+       recording. It is disabled in the GUI when drift correction is off.
    * - **Background sample interval (s)**
      - ``15.0``
      - Target time between background NTP drift samples. It is disabled in the

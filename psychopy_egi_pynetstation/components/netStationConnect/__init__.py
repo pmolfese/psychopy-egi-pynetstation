@@ -52,6 +52,7 @@ class EGIConnectComponent(NetStationInitComponent):
         strictECI=False,
         # testing
         disabled=False,
+        driftWarmup=False,
     ):
         NetStationInitComponent.__init__(
             self, exp, parentName,
@@ -65,6 +66,7 @@ class EGIConnectComponent(NetStationInitComponent):
             ntpIP=ntpIP,
             endian=endian,
             driftMode=driftMode,
+            driftWarmup=driftWarmup,
             driftInterval=driftInterval,
             measureRefresh=measureRefresh,
             warnSchedule=warnSchedule,

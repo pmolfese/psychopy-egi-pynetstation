@@ -230,6 +230,11 @@ without asking the experiment to provide inter-trial sampling windows. Advanced
 cooperative/manual drift methods still exist on the Python wrapper for custom code, but
 they are no longer exposed as Builder buttons.
 
+The optional **Enable drift warmup** checkbox builds a provisional model during
+the first 20 seconds after connecting. It is off by default; enable it when a
+timing test shows unstable drift near the start of a recording. The ordinary
+drift model takes over automatically once it has enough samples.
+
 ### ECI endianness
 
 The **Endianness** setting is the ECI protocol byte order for the computer running

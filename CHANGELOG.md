@@ -13,6 +13,9 @@ project uses semantic versioning after the initial `0.x` development series.
 - Flip-synchronized asynchronous event markers with a default duration of
   0.1 seconds.
 - Background clock-drift sampling and event-send error reporting.
+- Optional provisional drift warmup from EGI Connect.
+- High-resolution ``captureTime()`` / ``timeAtCapture()`` wrappers for the
+  upstream Windows-safe timestamp capture API.
 - Optional drift-readiness waiting through `waitForDrift()` /
   `wait_for_drift()` and EGI Start Recording's Drift tab.
 - Session summaries, ECI-response diagnostics, effective drift-setting

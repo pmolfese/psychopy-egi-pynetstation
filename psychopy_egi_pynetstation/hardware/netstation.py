@@ -45,6 +45,10 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
     autoDrift : bool
         Enable automatic drift sampling. With the default
         `autoDriftBackground=True`, the package samples on its own thread.
+    driftWarmup : bool
+        Enable the provisional short-baseline drift model. This can correct
+        early-session drift before the ordinary model has enough evidence;
+        the ordinary model takes over automatically when ready.
     autoDriftInterval : float
         Target seconds between drift samples.
     autoDriftMinPause : float
@@ -109,6 +113,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         debug=False,
         errorLog=None,
         strictECI=False,
+        driftWarmup=False,
     ):
         self.ip = ip
         # PsychoPy's numeric Builder params can arrive as floats (for example
@@ -118,6 +123,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self.endian = endian
         self.driftCorrection = driftCorrection
         self.autoDrift = autoDrift
+        self.driftWarmup = driftWarmup
         self.autoDriftInterval = autoDriftInterval
         self.autoDriftMinPause = autoDriftMinPause
         self.autoDriftBackground = autoDriftBackground
@@ -147,6 +153,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
             clock=clock,
             ntp_ip=self.ntpIP,
             drift_correction=self.driftCorrection,
+            drift_warmup=self.driftWarmup,
             auto_drift=self.autoDrift,
             auto_drift_interval=self.autoDriftInterval,
             auto_drift_min_pause=self.autoDriftMinPause,
@@ -491,6 +498,40 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         """
         return self._netstation.getTime()
 
+    def captureTime(self):
+        """
+        Capture the package's high-resolution clock at a critical moment.
+
+        Pair the returned value with `timeAtCapture()` after the critical
+        section. Unlike a raw `time.monotonic()` reading, this uses the
+        upstream package's precise clock on affected Windows versions.
+        """
+        return self._netstation.capture_time()
+
+    def capture_time(self):
+        """Pythonic alias for `captureTime()`, matching upstream naming."""
+        return self.captureTime()
+
+    def timeAtCapture(self, capturedTime):
+        """
+        Convert a value returned by `captureTime()` to an event timestamp.
+
+        For frameworks without a flip callback::
+
+            captured = ns.captureTime()
+            # ... once the event has occurred ...
+            start = ns.timeAtCapture(captured)
+            ns.sendEvent(eventType="stim", start=start)
+
+        PsychoPy experiments should normally use
+        `win.callOnFlip(ns.sendEvent, ...)` instead.
+        """
+        return self._netstation.time_at_capture(capturedTime)
+
+    def time_at_capture(self, captured_time):
+        """Pythonic alias for `timeAtCapture()`, matching upstream naming."""
+        return self.timeAtCapture(captured_time)
+
     # --- diagnostics ---
 
     def logRecord(self, record):
@@ -534,18 +575,11 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
 
     def timeAtMonotonic(self, monotonicTime):
         """
-        Convert a raw `time.monotonic()` reading into an event timestamp.
+        Deprecated compatibility wrapper for a raw `time.monotonic()` value.
 
-        For frameworks without a flip callback: capture `time.monotonic()`
-        at the critical moment (cheap - no locks, no model work), then
-        convert it afterwards::
-
-            captured = time.monotonic()
-            # ... once the frame has appeared ...
-            ns.sendEvent(eventType="stim", start=ns.timeAtMonotonic(captured))
-
-        In PsychoPy you normally want `win.callOnFlip(ns.sendEvent, ...)`
-        instead, which does this for you.
+        Prefer `captureTime()` with `timeAtCapture()`. Upstream cannot make a
+        raw `time.monotonic()` reading precise on Windows before Python 3.13
+        and plans to remove this compatibility path in egi-pynetstation 3.0.
         """
         return self._netstation.time_at_monotonic(monotonicTime)
 

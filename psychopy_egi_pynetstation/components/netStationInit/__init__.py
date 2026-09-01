@@ -56,6 +56,7 @@ class NetStationInitComponent(BaseComponent):
         strictECI=False,
         # testing
         disabled=False,
+        driftWarmup=False,
     ):
         BaseComponent.__init__(
             self, exp, parentName,
@@ -132,6 +133,7 @@ class NetStationInitComponent(BaseComponent):
         # --- Drift params ---
         self.order += [
             "driftMode",
+            "driftWarmup",
             "driftInterval",
         ]
         self.params['driftMode'] = Param(
@@ -148,12 +150,30 @@ class NetStationInitComponent(BaseComponent):
                 "and needs no extra Builder Components."
             )
         )
+        self.params['driftWarmup'] = Param(
+            driftWarmup, valType="bool", inputType="bool", categ="Drift",
+            label="Enable drift warmup",
+            hint=(
+                "Build a provisional drift model during the first 20 seconds "
+                "after connecting, before the ordinary drift model is ready. "
+                "The ordinary model takes over automatically once it has enough "
+                "samples. Enable this when timing tests show unstable drift near "
+                "the start of a recording."
+            )
+        )
         self.params['driftInterval'] = Param(
             driftInterval, valType="num", inputType="single", categ="Drift",
             label="Background sample interval (s)",
             hint="Target seconds between background drift samples."
         )
         # interval is meaningless with drift off
+        self.depends.append({
+            "dependsOn": "driftMode",
+            "condition": "== 'off'",
+            "param": "driftWarmup",
+            "true": "disable",
+            "false": "enable",
+        })
         self.depends.append({
             "dependsOn": "driftMode",
             "condition": "== 'off'",
@@ -349,6 +369,9 @@ class NetStationInitComponent(BaseComponent):
         mode = str(self.params['driftMode'])
         inits['autoDrift'] = mode != "'off'"
         inits['autoDriftBackground'] = mode != "'off'"
+        inits['driftWarmup'] = (
+            mode != "'off'" and bool(self.params['driftWarmup'])
+        )
 
         code = (
             "if deviceManager.getDevice(%(deviceLabel)s) is None:\n"
@@ -362,6 +385,7 @@ class NetStationInitComponent(BaseComponent):
             "        endian=%(endian)s,\n"
             "        driftCorrection=%(autoDrift)s,\n"
             "        autoDrift=%(autoDrift)s,\n"
+            "        driftWarmup=%(driftWarmup)s,\n"
             "        autoDriftInterval=%(driftInterval)s,\n"
             "        autoDriftBackground=%(autoDriftBackground)s,\n"
             "        debug=%(debug)s,\n"

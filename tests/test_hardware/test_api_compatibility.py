@@ -20,7 +20,7 @@ REQUIRED_KWARGS = {
     "__init__": {"endian", "debug", "error_log"},
     "connect": {
         "clock", "ntp_ip",
-        "drift_correction",
+        "drift_correction", "drift_warmup",
         "auto_drift", "auto_drift_interval",
         "auto_drift_min_pause", "auto_drift_background",
         "strict_eci",
@@ -39,7 +39,7 @@ REQUIRED_METHODS = [
     "disconnect", "begin_rec", "end_rec",
     "pending_events", "event_errors", "eci_errors", "session_summary",
     "resync", "drift_estimate", "drift_settings", "clock_state",
-    "getTime", "time_at_monotonic",
+    "getTime", "capture_time", "time_at_capture", "time_at_monotonic",
 ]
 
 

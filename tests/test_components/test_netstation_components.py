@@ -528,6 +528,42 @@ def test_connect_component_defaults_to_background_drift(routine):
 
     assert "autoDrift=True" in script
     assert "autoDriftBackground=True" in script
+    assert "driftWarmup=False" in script
+
+
+@pytest.mark.parametrize("warmup,expected", [(False, "False"), (True, "True")])
+def test_connect_component_forwards_drift_warmup(
+    routine, warmup, expected
+):
+    comp = EGIConnectComponent(
+        routine.exp, routine.name,
+        name="egiConnect",
+        deviceLabel="netstation",
+        driftWarmup=warmup,
+        measureRefresh=False,
+    )
+    routine.addComponent(comp)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert f"driftWarmup={expected}" in script
+    assert comp.params["driftWarmup"].categ == "Drift"
+
+
+def test_connect_component_disables_warmup_with_drift_off(routine):
+    comp = EGIConnectComponent(
+        routine.exp, routine.name,
+        name="egiConnect",
+        deviceLabel="netstation",
+        driftMode="off",
+        driftWarmup=True,
+        measureRefresh=False,
+    )
+    routine.addComponent(comp)
+
+    script = routine.exp.writeScript(expPath=None)
+
+    assert "driftWarmup=False" in script
 
 
 @pytest.mark.parametrize("strict,expected", [(False, "False"), (True, "True")])

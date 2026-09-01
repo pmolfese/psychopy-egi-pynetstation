@@ -20,7 +20,14 @@ explicit plugin-activation call:
        ip="10.10.10.42",
        ntpIP="10.10.10.51",
        port=55513,
+       driftWarmup=True,  # optional provisional model for early-session drift
    )
+
+``driftWarmup=True`` forwards upstream's ``connect(drift_warmup=True)``
+option. It builds a provisional model during the first 20 seconds after
+connecting, then yields permanently to the ordinary drift model once that
+model is ready. Leave it off unless timing tests show unstable drift near the
+start of a recording.
 
 Why the wrapper is named EGINetStation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -117,6 +124,22 @@ upstream examples. It blocks deliberately, so call it during setup or a
 planned pre-run pause, never near ``win.flip()`` or inside ``win.callOnFlip``.
 Any extra readiness thresholds accepted by the installed ``egi-pynetstation``
 build can be passed as keyword arguments.
+
+High-resolution timestamp capture
+---------------------------------
+
+For a framework without PsychoPy's flip callback, capture the upstream
+package's high-resolution clock at the critical moment and convert it later::
+
+   captured = ns.captureTime()
+   # ... once the event has occurred ...
+   ns.sendEvent(eventType="stim", start=ns.timeAtCapture(captured))
+
+The snake-case aliases ``capture_time()`` and ``time_at_capture()`` are also
+available. Prefer this pair over ``timeAtMonotonic()``, which upstream has
+deprecated because raw ``time.monotonic()`` readings can be quantized on
+Windows before Python 3.13. PsychoPy visual experiments should continue using
+``win.callOnFlip(ns.sendEvent, ...)``.
 
 Session diagnostics
 -------------------

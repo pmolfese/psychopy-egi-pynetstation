@@ -105,6 +105,7 @@ def test_drift_defaults_are_background(device):
     # upstream now samples drift in the background by default
     assert device.driftCorrection is True
     assert device.autoDrift is True
+    assert device.driftWarmup is False
     assert device.autoDriftBackground is True
 
     cooperative = EGINetStation(ip="127.0.0.1", autoDriftBackground=False)
@@ -116,6 +117,7 @@ def test_wrapper_defaults_match_upstream_drift_settings(device):
 
     assert device.driftCorrection == settings["drift_correction"]
     assert device.autoDrift == settings["auto_drift"]
+    assert device.driftWarmup == settings["drift_warmup"]
     assert device.autoDriftInterval == settings["auto_drift_interval"]
     assert device.autoDriftMinPause == settings["auto_drift_min_pause"]
     assert device.autoDriftBackground == settings["auto_drift_background"]
@@ -134,6 +136,16 @@ def test_connect_forwards_strict_eci(device):
     assert device._sessionStarted is True
     assert device._sessionRecorded is False
     assert device._sessionReported is False
+
+
+def test_connect_forwards_drift_warmup(device):
+    from unittest import mock
+
+    device.driftWarmup = True
+    with mock.patch.object(device._netstation, "connect") as connect:
+        device.connect()
+
+    assert connect.call_args.kwargs["drift_warmup"] is True
 
 
 @pytest.mark.parametrize("kwargs", [
@@ -343,6 +355,24 @@ def test_wrapper_exposes_expected_api():
         "sessionSummary", "setStrictECI",
         "resync", "configureAutoDrift", "sampleDriftIfDue", "sampleDrift",
         "waitForDrift", "wait_for_drift", "driftEstimate", "driftSettings",
-        "clockState", "getTime", "timeAtMonotonic",
+        "clockState", "getTime", "captureTime", "capture_time",
+        "timeAtCapture", "time_at_capture", "timeAtMonotonic",
     ):
         assert callable(getattr(EGINetStation, name, None)), name
+
+
+def test_high_resolution_capture_wrappers_delegate_upstream(device):
+    from unittest import mock
+
+    with mock.patch.object(
+        device._netstation, "capture_time", return_value=123.5
+    ) as capture, mock.patch.object(
+        device._netstation, "time_at_capture", return_value=4.25
+    ) as convert:
+        captured = device.captureTime()
+        timestamp = device.timeAtCapture(captured)
+
+    assert captured == 123.5
+    assert timestamp == 4.25
+    capture.assert_called_once_with()
+    convert.assert_called_once_with(123.5)

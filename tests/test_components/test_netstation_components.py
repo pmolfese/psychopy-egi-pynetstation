@@ -17,6 +17,9 @@ if Experiment is None:  # pragma: no cover - partial/stubbed install
 from psychopy_egi_pynetstation.components.netStationInit import (  # noqa: E402
     NetStationInitComponent,
 )
+from psychopy_egi_pynetstation.components._device import (  # noqa: E402
+    EGINetStationDeviceBackend,
+)
 from psychopy_egi_pynetstation.components.netStationConnect import (  # noqa: E402
     EGIConnectComponent,
     EgiConnectComponent,
@@ -38,6 +41,7 @@ from psychopy_egi_pynetstation.components.netStationSendEvent import (  # noqa: 
     EgiSendEventComponent,
 )
 from psychopy.experiment.components.text import TextComponent  # noqa: E402
+from psychopy.experiment.exports import IndentingBuffer  # noqa: E402
 from psychopy.experiment.utils import CodeGenerationException  # noqa: E402
 
 
@@ -49,7 +53,7 @@ def routine():
     return exp.routines["trial"]
 
 
-def test_plugin_exposes_only_visible_builder_components():
+def test_plugin_entry_points_include_active_and_legacy_components():
     names = {
         ep.name
         for ep in entry_points(group="psychopy.experiment.components")
@@ -63,6 +67,12 @@ def test_plugin_exposes_only_visible_builder_components():
         "EGIDisconnectComponent",
         "EGISendEventComponent",
     }
+
+    assert not EGIStartRecordingComponent.hidden
+    assert not EGIStopRecordingComponent.hidden
+    assert not EGISendEventComponent.hidden
+    assert EGIConnectComponent.hidden
+    assert EGIDisconnectComponent.hidden
 
 
 def test_builder_component_names_use_uppercase_egi():
@@ -89,49 +99,104 @@ def test_previous_component_class_names_remain_importable():
     assert EgiSendEventComponent is EGISendEventComponent
 
 
-def test_connect_component_registers_device_and_connects(routine):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        ip="10.0.0.42",
-        port=55513,
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
-
-    assert "deviceClass='psychopy_egi_pynetstation.hardware.netstation.EGINetStation'" in script
-    assert "deviceName='netstation'" in script
-    assert "ip='10.0.0.42'" in script
-    assert "_egiConnectDevice = deviceManager.getDevice('netstation')" in script
-    assert "egiConnect = _NetStationComponentState(" in script
-    assert "egiConnect.connect()" in script
+def test_all_entrypoint_component_templates_serialize():
+    for componentClass in (
+        EGIConnectComponent,
+        EGIStartRecordingComponent,
+        EGIStopRecordingComponent,
+        EGIDisconnectComponent,
+        EGISendEventComponent,
+    ):
+        template = componentClass.getTemplateJSON()
+        assert template["__name__"] == componentClass.__name__
 
 
 @pytest.mark.parametrize("componentClass", [
-    EGIConnectComponent,
     EGIStartRecordingComponent,
     EGIStopRecordingComponent,
-    EGIDisconnectComponent,
     EGISendEventComponent,
 ])
-def test_device_label_is_manual_text_not_device_manager_selector(
-    routine, componentClass
-):
+def test_visible_components_include_studio_svg_icons(componentClass):
+    assert componentClass.iconSVG.suffix == ".svg"
+    assert componentClass.iconSVG.is_file()
+    assert "<svg" in componentClass.getTemplateJSON()["iconSVG"]
+
+
+@pytest.mark.parametrize("componentClass", [
+    EGIStartRecordingComponent,
+    EGIStopRecordingComponent,
+    EGISendEventComponent,
+])
+def test_active_components_use_device_manager_selector(routine, componentClass):
     comp = componentClass(routine.exp, routine.name, deviceLabel="netstation")
 
     label = comp.params["deviceLabel"]
     assert label.val == "netstation"
-    assert label.valType == "str"
-    assert label.inputType == "single"
-    assert "not a Device Manager selection" in label.hint
+    assert label.valType == "device"
+    assert label.inputType == "device"
+    assert EGINetStationDeviceBackend in label.allowedVals
 
-    # Old .psyexp files saved this as valType="device". PsychoPy applies that
-    # metadata during load, so the Param must normalize it back to plain text.
-    label.valType = "device"
-    assert label.valType == "str"
+
+def test_device_backend_template_and_generated_code():
+    profile = {
+        "deviceName": "EGI NetStation (manual configuration)",
+        "ip": "10.0.0.42",
+        "port": 55513,
+        "ntpIP": "10.0.0.51",
+        "endian": "NTEL",
+    }
+    backend = EGINetStationDeviceBackend(profile)
+    backend.params["name"].val = "netstation"
+    buff = IndentingBuffer(target="PsychoPy")
+
+    backend.writeDeviceCode(buff)
+    code = buff.getvalue()
+
+    assert "deviceName='netstation'" in code
+    assert "ip='10.0.0.42'" in code
+    assert "port=55513" in code
+    assert "autoDrift=True" in code
+    assert "autoDriftBackground=True" in code
+    assert "deviceManager.getDevice('netstation').connect()" in code
+    compile(code, "<generated EGI device code>", "exec")
+
+    template = EGINetStationDeviceBackend.getTemplateJSON()
+    assert template["label"] == "EGI NetStation"
+    assert template["device"].endswith(".EGINetStation")
+
+
+def test_device_manager_connects_before_component_initialization(routine):
+    from psychopy import prefs
+
+    backend = EGINetStationDeviceBackend({
+        "deviceName": "EGI NetStation (manual configuration)",
+        "ip": "10.0.0.42",
+        "port": 55513,
+        "ntpIP": "10.0.0.51",
+        "endian": "NTEL",
+    })
+    backend.params["name"].val = "netstation"
+    previous = prefs.devices.get("netstation")
+    prefs.devices["netstation"] = backend
+    try:
+        component = EGIStartRecordingComponent(
+            routine.exp,
+            routine.name,
+            deviceLabel="netstation",
+            measureRefresh=False,
+        )
+        routine.addComponent(component)
+        script = routine.exp.writeScript(expPath=None)
+    finally:
+        if previous is None:
+            prefs.devices.pop("netstation", None)
+        else:
+            prefs.devices["netstation"] = previous
+
+    connect = "deviceManager.getDevice('netstation').connect()"
+    componentInit = "_egiStartRecordingDevice = deviceManager.getDevice('netstation')"
+    assert script.index(connect) < script.index(componentInit)
+    compile(script, "<integrated EGI Device Manager script>", "exec")
 
 
 def test_init_component_remains_available_for_old_experiments(routine):
@@ -169,13 +234,10 @@ def test_connect_component_writes_connect_call(routine):
 
 def test_components_in_one_routine_get_independent_lifecycle_state(routine):
     components = [
-        EGIConnectComponent(
-            routine.exp, routine.name,
-            name="egiConnect", deviceLabel="netstation", measureRefresh=False,
-        ),
         EGIStartRecordingComponent(
             routine.exp, routine.name,
             name="egiStartRecording", deviceLabel="netstation", startVal=1.0,
+            measureRefresh=False,
         ),
         EGISendEventComponent(
             routine.exp, routine.name,
@@ -192,34 +254,17 @@ def test_components_in_one_routine_get_independent_lifecycle_state(routine):
         "from psychopy_egi_pynetstation.component_state import "
         "NetStationComponentState as _NetStationComponentState"
     ) in script
-    for name in ("egiConnect", "egiStartRecording", "egiSendEvent"):
+    for name in ("egiStartRecording", "egiSendEvent"):
         assert f"_{name}Device = deviceManager.getDevice('netstation')" in script
         assert f"{name} = _NetStationComponentState(" in script
         assert f"_{name}Device, status=NOT_STARTED" in script
-    # Connect and Begin Recording may block. Re-reading the Routine clocks lets
+    # Begin Recording may block. Re-reading the Routine clocks lets
     # an overdue later marker still run in the current loop iteration rather
     # than being skipped when the Routine deadline is reached.
     assert script.count(
         "# refresh Routine clocks after the blocking NetStation command"
-    ) == 2
+    ) == 1
     compile(script, "<generated EGI script>", "exec")
-
-
-def test_connect_component_uses_default_lab_addresses(routine):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
-
-    assert "ip='10.10.10.42'" in script
-    assert "ntpIP='10.10.10.51'" in script
-    assert "port=55513," in script
-    assert "port=55513.0" not in script
 
 
 def test_plain_numeric_start_with_leading_zero_is_normalized(routine):
@@ -253,13 +298,8 @@ def test_start_expression_is_not_normalized(routine):
     assert "tThisFlip >= eventTime-frameTolerance" in script
 
 
-def test_connect_component_clarifies_endian_options(routine):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        measureRefresh=False,
-    )
+def test_device_backend_clarifies_endian_options():
+    comp = EGINetStationDeviceBackend({"deviceName": None})
 
     labels = comp.params["endian"].allowedLabels
     hint = comp.params["endian"].hint
@@ -270,7 +310,7 @@ def test_connect_component_clarifies_endian_options(routine):
     assert "PowerPC" in labels[1]
     assert "UNIX - big-endian" in labels[2]
     assert "not most modern Linux" in labels[2]
-    assert "misleading for most modern Unix/Linux" in hint
+    assert "legacy big-endian" in hint
 
 
 def test_disconnect_component_writes_disconnect_call(routine):
@@ -318,7 +358,12 @@ def test_start_recording_component_can_wait_for_drift(routine):
     assert "egiStartRecording.waitForDrift(" in script
     assert "timeout=45.0" in script
     assert "poll=0.25" in script
-    assert "from psychopy import logging" in script
+    assert "logging.info(" in script
+    assert any(
+        required.importName == "logging"
+        and required.importFrom == "psychopy"
+        for required in comp.exp.requiredImports
+    )
     assert comp.params["waitForDrift"].categ == "Drift"
     compile(script, "<generated drift wait EGI script>", "exec")
 
@@ -371,7 +416,7 @@ def test_send_event_component_direct_call_when_not_syncing(routine):
     assert "start='now'" in script
 
 
-def test_send_event_target_selector_lists_visual_components_only(routine):
+def test_send_event_target_is_studio_safe_text_field(routine):
     stimulus = TextComponent(
         routine.exp, routine.name,
         name="stimulus",
@@ -389,11 +434,11 @@ def test_send_event_target_selector_lists_visual_components_only(routine):
     for component in (stimulus, connect, marker):
         routine.addComponent(component)
 
-    assert marker.getTargetComponentVals() == ["", "stimulus"]
-    assert marker.getTargetComponentLabels() == [
-        "Use this marker's Start settings",
-        "stimulus (Text)",
-    ]
+    target = marker.params["targetComponent"]
+    assert target.inputType == "single"
+    assert target.valType == "str"
+    assert target.allowedVals == []
+    assert target.allowedLabels == []
     assert {
         "dependsOn": "targetComponent",
         "condition": "!= ''",
@@ -401,6 +446,13 @@ def test_send_event_target_selector_lists_visual_components_only(routine):
         "true": "disable",
         "false": "enable",
     } in marker.depends
+
+
+def test_send_event_target_param_serializes_without_bound_methods():
+    target = EGISendEventComponent.getTemplateJSON()["params"]["targetComponent"]
+
+    assert target["allowedVals"] == []
+    assert target["allowedLabels"] == []
 
 
 def test_send_event_can_bind_to_visual_component_start(routine):
@@ -481,50 +533,38 @@ def test_send_event_rejects_disabled_target(routine):
     routine.addComponent(stimulus)
     routine.addComponent(marker)
 
-    assert marker.getTargetComponentVals() == [""]
-    with pytest.raises(CodeGenerationException, match="is disabled"):
+    with pytest.raises(
+        CodeGenerationException, match="does not exist or is disabled"
+    ):
         routine.exp.writeScript(expPath=None)
 
 
-# --- Connect: drift modes ---
+# --- Device backend: drift modes ---
 
 
 @pytest.mark.parametrize("mode,autoDrift,background", [
     ("background", "True", "True"),
     ("off", "False", "False"),
 ])
-def test_connect_component_translates_drift_mode(routine, mode, autoDrift, background):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        ip="10.10.10.42",
-        ntpIP="10.10.10.51",
-        driftMode=mode,
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+def test_device_backend_translates_drift_mode(mode, autoDrift, background):
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    comp.params["driftMode"].val = mode
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert f"autoDrift={autoDrift}" in script
     assert f"autoDriftBackground={background}" in script
     assert "ntpIP='10.10.10.51'" in script
-    # normal and early experiment exits must both reach idempotent cleanup
-    assert "runAtExit.append(_egiConnectCleanupDevice.close)" in script
-    assert "_egiConnectDevice.close()" in script
 
 
-def test_connect_component_defaults_to_background_drift(routine):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+def test_device_backend_defaults_to_background_drift():
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert "autoDrift=True" in script
     assert "autoDriftBackground=True" in script
@@ -532,79 +572,61 @@ def test_connect_component_defaults_to_background_drift(routine):
 
 
 @pytest.mark.parametrize("warmup,expected", [(False, "False"), (True, "True")])
-def test_connect_component_forwards_drift_warmup(
-    routine, warmup, expected
-):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        driftWarmup=warmup,
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+def test_device_backend_forwards_drift_warmup(warmup, expected):
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    comp.params["driftWarmup"].val = warmup
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert f"driftWarmup={expected}" in script
     assert comp.params["driftWarmup"].categ == "Drift"
 
 
-def test_connect_component_disables_warmup_with_drift_off(routine):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        driftMode="off",
-        driftWarmup=True,
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+def test_device_backend_disables_warmup_with_drift_off():
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    comp.params["driftMode"].val = "off"
+    comp.params["driftWarmup"].val = True
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert "driftWarmup=False" in script
 
 
 @pytest.mark.parametrize("strict,expected", [(False, "False"), (True, "True")])
-def test_connect_component_forwards_strict_eci(routine, strict, expected):
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        strictECI=strict,
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+def test_device_backend_forwards_strict_eci(strict, expected):
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    comp.params["strictECI"].val = strict
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert f"strictECI={expected}" in script
     assert comp.params["strictECI"].categ == "Data"
 
 
-def test_connect_component_no_longer_passes_async_events(routine):
+def test_device_backend_no_longer_passes_async_events():
     # upstream dropped connect(async_events=...); make sure we don't resurrect it
-    comp = EGIConnectComponent(
-        routine.exp, routine.name,
-        name="egiConnect",
-        deviceLabel="netstation",
-        measureRefresh=False,
-    )
-    routine.addComponent(comp)
-
-    script = routine.exp.writeScript(expPath=None)
+    comp = EGINetStationDeviceBackend({"deviceName": None})
+    comp.params["name"].val = "netstation"
+    buff = IndentingBuffer(target="PsychoPy")
+    comp.writeDeviceCode(buff)
+    script = buff.getvalue()
 
     assert "asyncEvents" not in script
 
 
-# --- Connect: display timing ---
+# --- Start Recording: display timing ---
 
 
 def test_display_timing_measures_and_records(routine):
-    comp = EGIConnectComponent(
+    comp = EGIStartRecordingComponent(
         routine.exp, routine.name,
-        name="egiConnect", deviceLabel="netstation",
+        name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=True,
     )
     routine.addComponent(comp)
@@ -618,9 +640,9 @@ def test_display_timing_measures_and_records(routine):
 
 
 def test_display_timing_can_be_switched_off(routine):
-    comp = EGIConnectComponent(
+    comp = EGIStartRecordingComponent(
         routine.exp, routine.name,
-        name="egiConnect", deviceLabel="netstation",
+        name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=False,
     )
     routine.addComponent(comp)
@@ -635,9 +657,9 @@ def test_schedule_check_skips_routines_with_no_fixed_duration(routine):
     A Routine ended by a keypress has no fixed interval, so there is nothing
     for a beat to build against. Skipping it is correct, not a limitation.
     """
-    comp = EGIConnectComponent(
+    comp = EGIStartRecordingComponent(
         routine.exp, routine.name,
-        name="egiConnect", deviceLabel="netstation",
+        name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=False,
     )
     routine.addComponent(comp)
@@ -650,7 +672,7 @@ def test_schedule_check_skips_routines_with_no_fixed_duration(routine):
 
 
 def test_component_end_resolution():
-    cls = EGIConnectComponent
+    cls = EGIStartRecordingComponent
     from psychopy.experiment.params import Param
 
     def comp(startVal, stopVal, stopType):

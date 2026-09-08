@@ -18,21 +18,21 @@ Synchronizing to one named Builder stimulus
 --------------------------------------------
 
 When a marker should follow the onset of one particular Builder stimulus,
-choose that stimulus in EGI Send Event's **Target visual Component** field.
-Only visual Components in the same Routine appear in the selector. Put EGI
+enter that stimulus's exact **Name** in EGI Send Event's **Target visual
+Component** field. Put EGI
 Send Event *below the target stimulus* in the Routine: Builder then sees the
 target change to ``STARTED`` and queues the marker before the same upcoming
 window flip draws it. Code generation stops with an explanatory error if the
 marker is above its target, because silently continuing would put the event one
 screen refresh late.
 
-Selecting a target disables the marker's own **Start** controls. The target
+Entering a target disables the marker's own **Start** controls. The target
 determines when it fires and target binding is always flip synchronized,
 regardless of the **Sync to screen refresh** setting. The marker is already
 one-shot, so it fires only once per Routine repeat. Leave the target blank to
 use the marker's ordinary Start settings instead.
 
-For custom logic beyond the target selector, use a Code Component. This is the
+For custom logic beyond the target field, use a Code Component. This is the
 status-guard pattern from PsychoPy's `EGI NetStation guide
 <https://psychopy.org/hardware/egiNetStation.html>`_, adapted to this plugin's
 API.
@@ -40,7 +40,7 @@ API.
 First, place the Code Component *below the stimulus* in the same Routine.
 Builder runs **Each Frame** code in Component order, so the stimulus must update
 its status before the guard is evaluated. In the Code Component's **Begin
-Routine** tab, retrieve the client registered by EGI Connect and reset the
+Routine** tab, retrieve the client configured in Device Manager and reset the
 one-shot guard::
 
    eci_client = deviceManager.getDevice("netstation")
@@ -48,7 +48,7 @@ one-shot guard::
        raise RuntimeError("No NetStation device named 'netstation'")
    triggerSent = False
 
-Change ``"netstation"`` if EGI Connect uses a different **Device label**. Then
+Change ``"netstation"`` if the Device Manager entry uses a different label. Then
 put the following in **Each Frame**::
 
    if stimulus.status == STARTED and not triggerSent:
@@ -109,7 +109,7 @@ the marker aligned to the stimulus but does not remove the underlying step.
 How to use the display check
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. In EGI Connect's **Display** tab, leave **Measure display refresh at
+1. In EGI Start Recording's **Display** tab, leave **Measure display refresh at
    startup** and **Warn about vulnerable schedules** enabled. Run the
    experiment on the same computer, display, resolution, and refresh-rate
    setting that will be used for data collection.

@@ -14,9 +14,11 @@ class EGIDisconnectComponent(NetStationCommandComponent):
     categories = ['I/O', 'EEG']
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationDisconnect.png"
+    iconSVG = Path(__file__).parent / "light" / "netStationDisconnect.svg"
     tooltip = "EGI Disconnect: close the connection to a NetStation amplifier"
     version = "0.1.0"
     beta = False
+    hidden = True
 
     def __init__(
         self, exp, parentName,

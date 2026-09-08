@@ -8,12 +8,15 @@ project uses semantic versioning after the initial `0.x` development series.
 ### Added
 
 - PsychoPy hardware wrapper around `egi-pynetstation>=2.1.0`.
-- EGI Connect, Start Recording, Send Event, Stop Recording, and Disconnect
-  Builder Components.
+- EGI Start Recording, Send Event, and Stop Recording Components for PsychoPy
+  Studio, plus hidden compatibility loaders for the former Connect and
+  Disconnect Components.
+- An EGI NetStation Device Manager backend which owns connection settings and
+  connects the device during generated experiment setup.
 - Flip-synchronized asynchronous event markers with a default duration of
   0.1 seconds.
 - Background clock-drift sampling and event-send error reporting.
-- Optional provisional drift warmup from EGI Connect.
+- Optional provisional drift warmup from Device Manager.
 - High-resolution ``captureTime()`` / ``timeAtCapture()`` wrappers for the
   upstream Windows-safe timestamp capture API.
 - Optional drift-readiness waiting through `waitForDrift()` /
@@ -38,10 +41,14 @@ project uses semantic versioning after the initial `0.x` development series.
 - The documentation and README now identify the plugin as an independent,
   community-maintained project with no EGI or Magstim EGI affiliation.
 - The timing guide now provides a worked, Builder-specific procedure for
-  interpreting frame-beat warnings and converting visual schedules to frames,
-  with current screenshots of the EGI Send Event target selector.
-- NetStation network configuration lives entirely in EGI Connect. The shared
-  Device label is plain text and requires no Device Manager configuration.
+  interpreting frame-beat warnings and converting visual schedules to frames.
+- NetStation network configuration now lives in PsychoPy Device Manager, and
+  visible Components use Studio's native device selector.
+- EGI Send Event's target is plain text rather than a callable-backed dropdown,
+  allowing its Component template to serialize and load in PsychoPy Studio.
+- Visible Components provide SVG icons for PsychoPy Studio.
+- Connection cleanup is owned by Device Manager through ``close()``, with a
+  best-effort ``__del__`` fallback.
 - Builder Components now keep independent lifecycle state while sharing one
   NetStation connection, so multiple EGI commands in a Routine do not suppress
   one another.

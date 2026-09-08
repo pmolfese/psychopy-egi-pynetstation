@@ -23,9 +23,11 @@ class EGIConnectComponent(NetStationInitComponent):
     categories = ['I/O', 'EEG']
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationConnect.png"
+    iconSVG = Path(__file__).parent / "light" / "netStationConnect.svg"
     tooltip = "EGI Connect: configure and connect to a NetStation amplifier over TCP/IP"
     version = "0.1.0"
     beta = False
+    hidden = True
 
     def __init__(
         self, exp, parentName,

@@ -4,6 +4,9 @@ from psychopy.experiment.components import BaseVisualComponent, Param, getInitVa
 from psychopy.experiment.utils import CodeGenerationException
 
 from psychopy_egi_pynetstation.components._base import NetStationCommandComponent
+from psychopy_egi_pynetstation.components._device import (
+    EGINetStationDeviceBackend,
+)
 
 
 class EGISendEventComponent(NetStationCommandComponent):
@@ -18,13 +21,13 @@ class EGISendEventComponent(NetStationCommandComponent):
     Component's first drawing flip; the marker must follow that target in Routine
     order.
 
-    Requires an EGI Connect Component, with the same "Device label", placed
-    earlier in the experiment.
+    Requires an EGI NetStation device configured in Device Manager.
     """
     plugin = "psychopy-egi-pynetstation"
     categories = ['I/O', 'EEG']
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationSendEvent.png"
+    iconSVG = Path(__file__).parent / "light" / "netStationSendEvent.svg"
     tooltip = "EGI Send Event: send an event marker to a NetStation amplifier"
     version = "0.1.0"
     beta = False
@@ -38,7 +41,7 @@ class EGISendEventComponent(NetStationCommandComponent):
         stopType='duration (s)', stopVal='',
         startEstim='', durationEstim='',
         # device
-        deviceLabel="netstation",
+        deviceLabel="",
         # event
         targetComponent="",
         eventType="stim",
@@ -72,15 +75,13 @@ class EGISendEventComponent(NetStationCommandComponent):
             "eventDuration",
         ]
         self.params['targetComponent'] = Param(
-            targetComponent, valType="code", inputType="choice", categ="Basic",
-            allowedVals=self.getTargetComponentVals,
-            allowedLabels=self.getTargetComponentLabels,
+            targetComponent, valType="str", inputType="single", categ="Basic",
             label="Target visual Component",
             hint=(
                 "Optionally bind this marker to the first drawing flip of a visual "
-                "Component in the same Routine. The EGI Send Event Component must "
-                "be below the target in the Routine. Leave blank to use the normal "
-                "Start settings."
+                "Component in the same Routine by entering its Name. The EGI Send "
+                "Event Component must be below the target in the Routine. Leave "
+                "blank to use the normal Start settings."
             ),
         )
         self.params['eventType'] = Param(
@@ -156,32 +157,6 @@ class EGISendEventComponent(NetStationCommandComponent):
         routine = getattr(self.exp, "routines", {}).get(self.parentName)
         return list(routine) if routine is not None else []
 
-    def _visualComponents(self):
-        """Visual Components which can be selected as marker targets."""
-        return [
-            component
-            for component in self._routineComponents()
-            if (
-                component is not self
-                and isinstance(component, BaseVisualComponent)
-                and not bool(component.params.get("disabled"))
-            )
-        ]
-
-    def getTargetComponentVals(self):
-        """Values for the target selector in Builder."""
-        return [""] + [
-            str(component.params["name"].val)
-            for component in self._visualComponents()
-        ]
-
-    def getTargetComponentLabels(self):
-        """Human-readable labels for the target selector in Builder."""
-        return ["Use this marker's Start settings"] + [
-            f"{component.params['name'].val} ({component.getShortType()})"
-            for component in self._visualComponents()
-        ]
-
     def _targetName(self):
         value = self.params["targetComponent"].val
         return str(value).strip() if value not in (None, "None") else ""
@@ -204,8 +179,9 @@ class EGISendEventComponent(NetStationCommandComponent):
         target = self._targetComponent()
         if target is None:
             raise CodeGenerationException(
-                f"EGI Send Event target {targetName!r} does not exist in Routine "
-                f"{self.parentName!r}. Select another Target visual Component."
+                f"EGI Send Event target {targetName!r} does not exist or is disabled "
+                f"in Routine {self.parentName!r}. Select another Target visual "
+                "Component."
             )
         if not isinstance(target, BaseVisualComponent):
             raise CodeGenerationException(
@@ -282,3 +258,5 @@ class EGISendEventComponent(NetStationCommandComponent):
 
 EgiSendEventComponent = EGISendEventComponent
 NetStationSendEventComponent = EGISendEventComponent
+
+EGISendEventComponent.registerBackend(EGINetStationDeviceBackend)

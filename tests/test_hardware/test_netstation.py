@@ -13,7 +13,13 @@ from psychopy_egi_pynetstation import EGINetStation as PublicEGINetStation  # no
 def device():
     # constructing EGINetStation doesn't open a socket, so this is safe
     # without a real amplifier on the network
-    return EGINetStation(ip="127.0.0.1", port=55513)
+    instance = EGINetStation(ip="127.0.0.1", port=55513)
+    yield instance
+    # Some tests deliberately fake the wrapper's connection flags while
+    # mocking the upstream socket. Do not make __del__ mistake that artificial
+    # state for a live connection after the mock context has ended.
+    instance._connected = False
+    instance._recording = False
 
 
 def test_construct_does_not_connect(device):
@@ -69,8 +75,16 @@ def test_is_same_device_rejects_other_types(device):
     assert not device.isSameDevice(None)
 
 
-def test_get_available_devices_is_empty():
-    assert EGINetStation.getAvailableDevices() == []
+def test_get_available_devices_returns_editable_studio_profile():
+    profiles = EGINetStation.getAvailableDevices()
+
+    assert profiles == [{
+        "deviceName": "EGI NetStation (manual configuration)",
+        "ip": "10.10.10.42",
+        "port": 55513,
+        "ntpIP": "10.10.10.51",
+        "endian": "NTEL",
+    }]
 
 
 def test_send_event_requires_connection(device):
@@ -170,6 +184,9 @@ def test_connect_passes_kwargs_upstream_accepts(kwargs):
         finally:
             # background mode starts a real thread; don't leak it
             dev._netstation._stop_auto_drift_thread()
+            # The socket was mocked, so there is no real connection for the
+            # destructor to close after the mock context ends.
+            dev._connected = False
 
 
 def test_event_bookkeeping_works_before_connecting(device):
@@ -285,6 +302,15 @@ def test_close_is_safe_before_connecting(device):
 
     assert device._connected is False
     assert device._recording is False
+
+
+def test_destructor_uses_idempotent_close(device):
+    from unittest import mock
+
+    with mock.patch.object(device, "close") as close:
+        device.__del__()
+
+    close.assert_called_once_with()
 
 
 def test_drift_calls_require_connection(device):

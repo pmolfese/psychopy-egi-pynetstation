@@ -199,11 +199,11 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         """
         Safely finish recording, flush events, and close the connection.
 
-        This is idempotent and is registered as an experiment-exit callback by
-        the Builder Component. Explicit Stop Recording and Disconnect Components
-        remain useful for choosing the precise endpoint; this method is the safety
-        net for normal completion, Escape, and partially configured experiments.
-        Cleanup failures are logged rather than masking experiment shutdown.
+        This is idempotent and is called by PsychoPy's DeviceManager during
+        experiment shutdown. An explicit Stop Recording Component chooses the
+        precise recording endpoint; this method is the safety net for normal
+        completion, Escape, and partially configured experiments. Cleanup
+        failures are logged rather than masking experiment shutdown.
         """
         if self._connected and self._recording:
             try:
@@ -218,6 +218,15 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
                 logging.error(f"Could not disconnect from NetStation: {err}")
 
         self._reportSession()
+
+    def __del__(self):
+        """Best-effort fallback when a DeviceManager reference is released."""
+        try:
+            self.close()
+        except Exception:
+            # Destructors can run during interpreter shutdown, when logging and
+            # imported modules may already have been torn down.
+            pass
 
     def _reportSession(self):
         """Log one complete health report for the current connection."""
@@ -602,8 +611,17 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
     @staticmethod
     def getAvailableDevices():
         """
-        NetStation amplifiers can't be auto-discovered on the network, so
-        this always returns an empty list. Specify `ip` (and, if needed,
-        `port`) directly when creating an EGINetStation device.
+        Return a manual configuration profile for PsychoPy DeviceManager.
+
+        NetStation amplifiers cannot be discovered automatically, but Studio's
+        Add Device dialog only displays a backend when at least one profile is
+        available. The returned profile supplies editable lab defaults and does
+        not claim that a device was found on the network.
         """
-        return []
+        return [{
+            "deviceName": "EGI NetStation (manual configuration)",
+            "ip": DEFAULT_NETSTATION_IP,
+            "port": DEFAULT_PORT,
+            "ntpIP": DEFAULT_AMP_IP,
+            "endian": "NTEL",
+        }]

@@ -12,10 +12,9 @@ experiments. It uses the NetStation ECI network protocol through the
 > sponsored by EGI or Magstim EGI. It is an independent, community-maintained
 > solution for using NetStation with PsychoPy.
 
-Use the plugin in any of three ways: with five Builder Components, by directly
-constructing the Python hardware wrapper, or through PsychoPy's Device Manager.
-Builder requires no physical device selection or prior Device Manager
-configuration.
+Use the plugin in any of three ways: with three PsychoPy Studio Components
+backed by Device Manager, by directly constructing the Python hardware wrapper,
+or through Device Manager from Coder.
 
 > **Validation status:** version 0.1.0 is the initial public-release candidate. Automated
 > tests cover the wrapper API, generated Builder code, event defaults, and
@@ -41,7 +40,7 @@ Plugin/Packages Manager by searching for `psychopy-egi-pynetstation`, or run:
 python -m pip install psychopy-egi-pynetstation
 ```
 
-Restart PsychoPy after installation so Builder discovers the plugin. Until the
+Restart PsychoPy after installation so Studio discovers the plugin. Until the
 first PyPI release is available, install the current source directly from
 GitHub:
 
@@ -60,30 +59,38 @@ Builder-generated experiment. PsychoPy discovers this plugin through its
 installed entry points, and the plugin's hardware wrapper imports the underlying
 network library internally.
 
-## Builder quick start
+## Studio quick start
 
-![EGI Components in PsychoPy Builder's EEG panel](https://raw.githubusercontent.com/pmolfese/psychopy-egi-pynetstation/main/images/1-components.png)
+Configure the device once, then add the Components to the Flow:
 
-Add the Components to the Flow in this order, keeping the default Device label
-`netstation` on all of them:
-
-1. Add **EGI Connect** near the start of the experiment. Enter the NetStation
-   host IP, ECI port, and amplifier NTP IP on its **Device** tab.
-2. Add **EGI Start Recording** after the connection is established.
-3. Add **EGI Send Event** wherever a marker should be emitted. Event type must
-   be four characters, such as `stim` or `resp`. Event duration defaults to
+1. Open Studio's **Device Manager**, choose **Add Device > EGI NetStation**,
+   select the manual-configuration profile, and give it the label `netstation`.
+   Enter the NetStation host IP, ECI port, amplifier NTP IP, and any drift or
+   diagnostic options. The generated experiment connects during device setup.
+2. Add **EGI Start Recording** where recording should begin and select the
+   `netstation` device.
+3. Add **EGI Send Event** wherever a marker should be emitted. Select the same
+   device. Event type must be four characters, such as `stim` or `resp`. Event
+   duration defaults to
    `0.1` seconds.
 4. Add **EGI Stop Recording** near the end of the experiment.
-5. Add **EGI Disconnect** after recording has stopped.
 
 These Components are momentary commands: their Component stop time/duration is
 not used. For **EGI Send Event**, the separate **Event duration (s)** field is
 the duration recorded in NetStation and defaults to `0.1`.
 
-The shared Device label is only an internal name used by the generated script
-to retrieve one network connection. It is plain text, not a device to select
-from Device Manager. NetStation amplifiers are not auto-discovered, so an empty
-Device Manager list is expected.
+NetStation amplifiers cannot be auto-discovered, so Device Manager presents a
+manual configuration profile rather than claiming that hardware was found.
+PsychoPy closes registered devices at experiment shutdown; the wrapper's
+idempotent `close()` and destructor safely stop an active recording, flush
+queued events, and disconnect.
+
+Device Manager profiles are saved in PsychoPy's per-user `devices.json`, not
+inside the `.psyexp` file. The experiment stores only the selected device
+label. When moving the experiment to another computer or user account, install
+the plugin and recreate/import an EGI NetStation profile with the same label
+before generating the experiment script. The generated Python script contains
+the resolved device setup code.
 
 ## PsychoPy Coder / Python quick start
 
@@ -178,47 +185,34 @@ the plugin also exposes `wait_for_drift()` for code copied from upstream
 examples. Because it intentionally blocks, use it during setup or a planned
 pre-run pause, never inside `win.callOnFlip()` or near a visual flip.
 
-## Builder Components
+## Studio Components
 
-Five Builder Components are also included, under **I/O > EEG** in the Components panel -
-each is a one-shot "command" that fires once, when the Component starts (their stop
-time/duration is not used):
+Three Components appear under **I/O > EEG**. Each uses the EGI NetStation
+device selected from Device Manager and fires once when the Component starts
+(its normal stop time/duration is not used):
 
-1. **EGI Connect** - creates the NetStation network client, registers it internally,
-   then opens the TCP/IP connection. Set the **NetStation IP address** (default
-   `10.10.10.42`), **port** (default `55513`), **Amplifier NTP IP address**
-   (default `10.10.10.51`), **endianness** and **drift
-   correction** mode here. Background drift sampling is the default and needs no extra
-   Component. Add exactly one of these per amplifier, before any other NetStation
-   Component.
-2. **EGI Start Recording** - starts EEG recording, and performs the ECI NTP sync
+1. **EGI Start Recording** - starts EEG recording, and performs the ECI NTP sync
    which establishes the event timestamp epoch. It can optionally wait until
    drift correction is ready before the experiment continues. One connection
-   supports one recording epoch; disconnect and reconnect before starting
-   another.
-3. **EGI Stop Recording** - stops EEG recording (flushing queued events first).
-4. **EGI Disconnect** - closes the connection (flushing queued events first).
-5. **EGI Send Event** - sends a single event marker (4-character **Event
+   supports one recording epoch.
+2. **EGI Stop Recording** - stops EEG recording (flushing queued events first).
+3. **EGI Send Event** - sends a single event marker (4-character **Event
    type**, plus optional label/description/extra data). **Event duration** defaults
    to `0.1` seconds. With **Sync to screen refresh** on (the default) the marker is
    sent from `win.callOnFlip()`, so it is timestamped to the flip which actually
-   showed the stimulus. Its optional **Target visual Component** selector binds
-   the marker to a named visual Component's first drawing flip; place the marker
-   below that target in the Routine.
+   showed the stimulus. Its optional **Target visual Component** field accepts
+   the exact Name of a visual Component and binds to its first drawing flip;
+   place the marker below that target in the Routine.
 
-All five share a **Device label** text parameter (default `"netstation"`) - Start/Stop
-Recording, Disconnect and Send Event all look up the network client that Connect
-registered under the same label, so keep the label consistent across all NetStation
-Components in an experiment. This is an internal name, not a device to select in
-PsychoPy's Device Manager; no Device Manager setup is required. If no matching
-Connect Component is found, the generated script raises a clear `ValueError` at
-experiment startup rather than failing obscurely later. Drop these into your
-Routines/Flow in the order matching the numbering above (Connect near the start of
-the experiment, Disconnect near the end).
+Configure network, endian, drift, and diagnostic settings on the EGI NetStation
+Device Manager entry. Each active Component's **Device** field selects that
+entry. Multiple Components may share the device while retaining independent
+Builder lifecycle state. If a selected device is missing, the generated script
+raises a clear `ValueError` during setup.
 
 ### Drift correction
 
-Connect's **Drift correction** setting has two modes:
+Device Manager's **Drift correction** setting has two modes:
 
 | Mode | You must | Forgetting to wire it up |
 |---|---|---|
@@ -261,7 +255,7 @@ wrong, and `egi-pynetstation` never sees a frame. The plugin's job here is to
 because silently changing your timing behaviour would be worse than the
 original problem.
 
-Connect's **Display** tab has two settings:
+EGI Start Recording's **Display** tab has two settings:
 
 - **Measure display refresh at startup** *(default on)* - measures the real
   refresh once via `getActualFrameRate()`, falling back to the monitor
@@ -330,15 +324,16 @@ the amplifier rejected or returned malformed. `sessionSummary()` combines
 those results with drift and NTP health; `eventErrors()` and `eciErrors()`
 provide the underlying failure lists.
 
-For diagnostic sessions, EGI Connect's **Strict ECI responses** option makes
+For diagnostic sessions, Device Manager's **Strict ECI responses** option makes
 failed responses raise from blocking calls. Asynchronous callbacks still
 cannot raise into the experiment thread, so their failures remain available in
 the cleanup report.
 
 ## Troubleshooting
 
-- **Nothing appears in Device Manager:** expected. Configure the IP and port in
-  EGI Connect instead.
+- **No EGI NetStation option appears in Device Manager:** restart PsychoPy after
+  installing the plugin. The backend offers a manual profile because the
+  amplifier cannot be discovered automatically.
 - **The EGI Components do not appear:** confirm the plugin is installed into
   PsychoPy's Python environment, then restart PsychoPy.
 - **Connection refused or times out:** confirm ECI is enabled, the host IP and

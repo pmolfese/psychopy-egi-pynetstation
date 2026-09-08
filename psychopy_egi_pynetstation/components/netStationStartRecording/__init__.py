@@ -3,19 +3,28 @@ from pathlib import Path
 from psychopy.experiment.components import Param, getInitVals
 
 from psychopy_egi_pynetstation.components._base import NetStationCommandComponent
+from psychopy_egi_pynetstation.components._device import (
+    EGINetStationDeviceBackend,
+)
+from psychopy_egi_pynetstation.components._display import (
+    NetStationDisplayTimingMixin,
+    addDisplayTimingParams,
+)
 
 
-class EGIStartRecordingComponent(NetStationCommandComponent):
+class EGIStartRecordingComponent(
+    NetStationDisplayTimingMixin, NetStationCommandComponent
+):
     """
     Starts EEG recording on a NetStation amplifier when this Component starts.
 
-    Requires an EGI Connect Component, with the same "Device label", placed
-    earlier in the experiment.
+    Requires an EGI NetStation device configured in Device Manager.
     """
     plugin = "psychopy-egi-pynetstation"
     categories = ['I/O', 'EEG']
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationStartRecording.png"
+    iconSVG = Path(__file__).parent / "light" / "netStationStartRecording.svg"
     tooltip = "EGI Start Recording: start EEG recording on a NetStation amplifier"
     version = "0.1.0"
     beta = False
@@ -28,11 +37,14 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
         stopType='duration (s)', stopVal='',
         startEstim='', durationEstim='',
         # device
-        deviceLabel="netstation",
+        deviceLabel="",
         # drift
         waitForDrift=False,
         driftWaitTimeout=300.0,
         driftWaitPoll=1.0,
+        # display
+        measureRefresh=True,
+        warnSchedule=True,
         # testing
         disabled=False,
     ):
@@ -47,6 +59,11 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
         )
         self.type = "EGIStartRecording"
         self.exp.requirePsychopyLibs(['logging'])
+        addDisplayTimingParams(
+            self,
+            measureRefresh=measureRefresh,
+            warnSchedule=warnSchedule,
+        )
         self.order += [
             "waitForDrift",
             "driftWaitTimeout",
@@ -80,6 +97,10 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
                 "false": "disable",
             })
 
+    def writeInitCode(self, buff):
+        NetStationCommandComponent.writeInitCode(self, buff)
+        self.writeDisplayTimingCode(buff)
+
     def writeCommandCode(self, buff):
         inits = getInitVals(self.params)
         code = "%(name)s.beginRecording()\n"
@@ -98,3 +119,5 @@ class EGIStartRecordingComponent(NetStationCommandComponent):
 
 EgiStartRecordingComponent = EGIStartRecordingComponent
 NetStationStartRecordingComponent = EGIStartRecordingComponent
+
+EGIStartRecordingComponent.registerBackend(EGINetStationDeviceBackend)

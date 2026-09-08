@@ -1,6 +1,10 @@
 import re
 
-from psychopy.experiment.components import BaseComponent, Param, getInitVals
+from psychopy.experiment.components import (
+    BaseDeviceComponent,
+    Param,
+    getInitVals,
+)
 
 
 class NetStationDeviceLabelParam(Param):
@@ -69,10 +73,10 @@ def writeNetStationTimingRefresh(buff):
     buff.writeIndentedLines(code)
 
 
-class NetStationCommandComponent(BaseComponent):
+class NetStationCommandComponent(BaseDeviceComponent):
     """
-    Base class for NetStation Components which send a single one-off command (e.g.
-    connect, disconnect, start recording) to an already-registered NetStation device.
+    Base class for Components which send a one-off command to a configured
+    NetStation DeviceManager device.
 
     Subclasses must set `type` and override `writeCommandCode` to write the line(s) of
     code which send their particular command. The command fires once, when the
@@ -89,15 +93,20 @@ class NetStationCommandComponent(BaseComponent):
         deviceLabel="netstation",
         disabled=False,
     ):
-        BaseComponent.__init__(
+        BaseDeviceComponent.__init__(
             self, exp, parentName,
             name=name,
             startType=startType, startVal=startVal,
             stopType=stopType, stopVal=stopVal,
             startEstim=startEstim, durationEstim=durationEstim,
+            deviceLabel=deviceLabel,
             disabled=disabled,
         )
-        addNetStationDeviceLabel(self, deviceLabel)
+        self.exp.requireImport(
+            importName="NetStationComponentState",
+            importFrom="psychopy_egi_pynetstation.component_state",
+            importAs="_NetStationComponentState",
+        )
         self.url = "https://github.com/pmolfese/psychopy-egi-pynetstation"
 
     def writeInitCode(self, buff):
@@ -113,9 +122,9 @@ class NetStationCommandComponent(BaseComponent):
             "_%(name)sDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
             "if _%(name)sDevice is None:\n"
             "    raise ValueError(\n"
-            "        \"No NetStation device found for Device label %(deviceLabel)s - be \"\n"
-            "        \"sure to add an EGI Connect Component with the same \"\n"
-            "        \"Device label, before this Component.\"\n"
+            "        \"No NetStation device found for Device label %(deviceLabel)s. \"\n"
+            "        \"Configure and select an EGI NetStation device in \"\n"
+            "        \"Device Manager.\"\n"
             "    )\n"
             "%(name)s = _NetStationComponentState(\n"
             "    _%(name)sDevice, status=NOT_STARTED\n"

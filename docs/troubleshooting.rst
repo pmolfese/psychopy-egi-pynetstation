@@ -8,19 +8,20 @@ Install the plugin into PsychoPy's own Python environment and restart
 PsychoPy. Builder discovers the Components from package entry points only at
 startup. Look under **I/O > EEG**.
 
-Nothing appears in Device Manager
----------------------------------
+No EGI NetStation option appears in Device Manager
+--------------------------------------------------
 
-This is expected. NetStation amplifiers cannot be auto-discovered, and
-**Device label** is an internal text key rather than a Device Manager
-selection. Enter all network settings in EGI Connect.
+Restart PsychoPy after installing the plugin. Device Manager should offer an
+**EGI NetStation** backend with a manual-configuration profile. The manual
+profile exists because NetStation amplifiers cannot be auto-discovered.
 
 “No NetStation device found” at startup
 ---------------------------------------
 
-Add EGI Connect before the failing Component and make their **Device label**
-values identical. The default is ``netstation``. Check capitalization and
-whitespace if custom labels are used.
+Open Device Manager, add an EGI NetStation device, and select that device in
+each EGI Component. Check capitalization and whitespace if a custom label is
+used. Device profiles are per-user and are not stored in the ``.psyexp`` file,
+so repeat this setup after moving an experiment to another computer or account.
 
 Connection refused or timed out
 -------------------------------
@@ -45,28 +46,27 @@ characters and inspect the PsychoPy log at experiment end for both
 asynchronous worker failures and rejected ECI responses. Stop recording or
 disconnect cleanly so queued events can flush. For detailed diagnostics, set a
 writable **ECI error log file** and optionally enable **Strict ECI responses**
-in EGI Connect. Coder experiments can inspect ``sessionSummary()``,
+in Device Manager. Coder experiments can inspect ``sessionSummary()``,
 ``eventErrors()``, and ``eciErrors()`` directly.
 
 “This connection has already recorded”
 --------------------------------------
 
 One connection supports one recording epoch because starting again would
-rebase the event clock. Stop recording, disconnect, reconnect, and then start
-the next recording. Do not place a second EGI Start Recording Component before
-an intervening EGI Disconnect and EGI Connect pair.
+rebase the event clock. Use a separate experiment run for another recording
+epoch.
 
 Markers do not align with a visual stimulus
 --------------------------------------------
 
 Enable **Sync to screen refresh** on EGI Send Event and give it the same start
-condition as the visual stimulus. Do not confuse this with EGI Connect's
-inherited **Sync timing with screen refresh** option.
+condition as the visual stimulus, or enter the stimulus's exact **Name** in
+**Target visual Component** and put the marker below it in the Routine.
 
 A one-frame timing step appears
 -------------------------------
 
-Keep EGI Connect's display measurement and schedule warning enabled, then
+Keep EGI Start Recording's display measurement and schedule warning enabled, then
 inspect the startup log. A clock-timed duration that is not a whole number of
 measured frame periods can produce a display phase sweep even when event
 timestamps are correct. See :doc:`timing` before changing durations to frames.

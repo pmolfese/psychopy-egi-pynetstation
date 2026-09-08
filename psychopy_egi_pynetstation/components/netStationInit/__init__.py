@@ -114,7 +114,8 @@ class NetStationInitComponent(BaseComponent):
             endian, valType="str", inputType="choice", categ="Device",
             allowedVals=["NTEL", "MAC-", "UNIX"],
             allowedLabels=[
-                "NTEL - little-endian: modern Macs, Windows, most ARM64 Linux",
+                "NTEL - little-endian: Intel/Apple Silicon Macs, Windows, "
+                "most ARM64 Linux",
                 "MAC- - big-endian: legacy PowerPC Macs",
                 "UNIX - big-endian: legacy Unix, not most modern Linux",
             ],

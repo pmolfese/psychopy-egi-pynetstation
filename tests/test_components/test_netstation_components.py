@@ -21,23 +21,18 @@ from psychopy_egi_pynetstation.components._device import (  # noqa: E402
     EGINetStationDeviceBackend,
 )
 from psychopy_egi_pynetstation.components.netStationConnect import (  # noqa: E402
-    EGIConnectComponent,
     EgiConnectComponent,
 )
 from psychopy_egi_pynetstation.components.netStationDisconnect import (  # noqa: E402
-    EGIDisconnectComponent,
     EgiDisconnectComponent,
 )
 from psychopy_egi_pynetstation.components.netStationStartRecording import (  # noqa: E402
-    EGIStartRecordingComponent,
     EgiStartRecordingComponent,
 )
 from psychopy_egi_pynetstation.components.netStationStopRecording import (  # noqa: E402
-    EGIStopRecordingComponent,
     EgiStopRecordingComponent,
 )
 from psychopy_egi_pynetstation.components.netStationSendEvent import (  # noqa: E402
-    EGISendEventComponent,
     EgiSendEventComponent,
 )
 from psychopy.experiment.components.text import TextComponent  # noqa: E402
@@ -61,60 +56,72 @@ def test_plugin_entry_points_include_active_and_legacy_components():
     }
 
     assert names == {
-        "EGIConnectComponent",
-        "EGIStartRecordingComponent",
-        "EGIStopRecordingComponent",
-        "EGIDisconnectComponent",
-        "EGISendEventComponent",
+        "EgiConnectComponent",
+        "EgiStartRecordingComponent",
+        "EgiStopRecordingComponent",
+        "EgiDisconnectComponent",
+        "EgiSendEventComponent",
     }
 
-    assert not EGIStartRecordingComponent.hidden
-    assert not EGIStopRecordingComponent.hidden
-    assert not EGISendEventComponent.hidden
-    assert EGIConnectComponent.hidden
-    assert EGIDisconnectComponent.hidden
+    assert not EgiStartRecordingComponent.hidden
+    assert not EgiStopRecordingComponent.hidden
+    assert not EgiSendEventComponent.hidden
+    assert EgiConnectComponent.hidden
+    assert EgiDisconnectComponent.hidden
 
 
-def test_builder_component_names_use_uppercase_egi():
-    from psychopy.tools import stringtools as st
+def test_builder_component_names_use_studio_compatible_egi_prefix():
+    import re
 
-    for component_class in (
-        EGIConnectComponent,
-        EGIStartRecordingComponent,
-        EGIStopRecordingComponent,
-        EGIDisconnectComponent,
-        EGISendEventComponent,
-    ):
-        label = component_class.__name__.removesuffix("Component")
-        label = st.CaseSwitcher.pascal2title(label)
-        assert label.startswith("EGI")
-        assert not label.startswith("Egi")
+    expected = {
+        EgiConnectComponent: "Egi Connect",
+        EgiStartRecordingComponent: "Egi Start Recording",
+        EgiStopRecordingComponent: "Egi Stop Recording",
+        EgiDisconnectComponent: "Egi Disconnect",
+        EgiSendEventComponent: "Egi Send Event",
+    }
+    for component_class, expected_label in expected.items():
+        # Mirrors ComponentButton.svelte's current titleCase implementation.
+        label = component_class.__name__.replace("Component", "")
+        label = re.sub(r"(\w)([A-Z])", r"\1 \2", label)
+        assert label == expected_label
 
 
-def test_previous_component_class_names_remain_importable():
-    assert EgiConnectComponent is EGIConnectComponent
-    assert EgiStartRecordingComponent is EGIStartRecordingComponent
-    assert EgiStopRecordingComponent is EGIStopRecordingComponent
-    assert EgiDisconnectComponent is EGIDisconnectComponent
-    assert EgiSendEventComponent is EGISendEventComponent
+def test_uppercase_component_class_names_are_not_exported():
+    modules = (
+        "netStationConnect",
+        "netStationStartRecording",
+        "netStationStopRecording",
+        "netStationDisconnect",
+        "netStationSendEvent",
+    )
+    for module_name in modules:
+        module = __import__(
+            f"psychopy_egi_pynetstation.components.{module_name}",
+            fromlist=["*"],
+        )
+        assert not any(
+            name.startswith("EGI") and name.endswith("Component")
+            for name in vars(module)
+        )
 
 
 def test_all_entrypoint_component_templates_serialize():
     for componentClass in (
-        EGIConnectComponent,
-        EGIStartRecordingComponent,
-        EGIStopRecordingComponent,
-        EGIDisconnectComponent,
-        EGISendEventComponent,
+        EgiConnectComponent,
+        EgiStartRecordingComponent,
+        EgiStopRecordingComponent,
+        EgiDisconnectComponent,
+        EgiSendEventComponent,
     ):
         template = componentClass.getTemplateJSON()
         assert template["__name__"] == componentClass.__name__
 
 
 @pytest.mark.parametrize("componentClass", [
-    EGIStartRecordingComponent,
-    EGIStopRecordingComponent,
-    EGISendEventComponent,
+    EgiStartRecordingComponent,
+    EgiStopRecordingComponent,
+    EgiSendEventComponent,
 ])
 def test_visible_components_include_studio_svg_icons(componentClass):
     assert componentClass.iconSVG.suffix == ".svg"
@@ -123,9 +130,9 @@ def test_visible_components_include_studio_svg_icons(componentClass):
 
 
 @pytest.mark.parametrize("componentClass", [
-    EGIStartRecordingComponent,
-    EGIStopRecordingComponent,
-    EGISendEventComponent,
+    EgiStartRecordingComponent,
+    EgiStopRecordingComponent,
+    EgiSendEventComponent,
 ])
 def test_active_components_use_device_manager_selector(routine, componentClass):
     comp = componentClass(routine.exp, routine.name, deviceLabel="netstation")
@@ -179,7 +186,7 @@ def test_device_manager_connects_before_component_initialization(routine):
     previous = prefs.devices.get("netstation")
     prefs.devices["netstation"] = backend
     try:
-        component = EGIStartRecordingComponent(
+        component = EgiStartRecordingComponent(
             routine.exp,
             routine.name,
             deviceLabel="netstation",
@@ -217,7 +224,7 @@ def test_init_component_remains_available_for_old_experiments(routine):
 
 
 def test_connect_component_writes_connect_call(routine):
-    comp = EGIConnectComponent(
+    comp = EgiConnectComponent(
         routine.exp, routine.name,
         name="egiConnect",
         deviceLabel="netstation",
@@ -234,12 +241,12 @@ def test_connect_component_writes_connect_call(routine):
 
 def test_components_in_one_routine_get_independent_lifecycle_state(routine):
     components = [
-        EGIStartRecordingComponent(
+        EgiStartRecordingComponent(
             routine.exp, routine.name,
             name="egiStartRecording", deviceLabel="netstation", startVal=1.0,
             measureRefresh=False,
         ),
-        EGISendEventComponent(
+        EgiSendEventComponent(
             routine.exp, routine.name,
             name="egiSendEvent", deviceLabel="netstation", startVal=2.0,
             eventType="stim",
@@ -268,7 +275,7 @@ def test_components_in_one_routine_get_independent_lifecycle_state(routine):
 
 
 def test_plain_numeric_start_with_leading_zero_is_normalized(routine):
-    comp = EGISendEventComponent(
+    comp = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         deviceLabel="netstation",
@@ -284,7 +291,7 @@ def test_plain_numeric_start_with_leading_zero_is_normalized(routine):
 
 
 def test_start_expression_is_not_normalized(routine):
-    comp = EGISendEventComponent(
+    comp = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         deviceLabel="netstation",
@@ -314,7 +321,7 @@ def test_device_backend_clarifies_endian_options():
 
 
 def test_disconnect_component_writes_disconnect_call(routine):
-    comp = EGIDisconnectComponent(
+    comp = EgiDisconnectComponent(
         routine.exp, routine.name,
         name="egiDisconnect",
         deviceLabel="netstation",
@@ -327,7 +334,7 @@ def test_disconnect_component_writes_disconnect_call(routine):
 
 
 def test_start_recording_component_writes_begin_recording(routine):
-    comp = EGIStartRecordingComponent(
+    comp = EgiStartRecordingComponent(
         routine.exp, routine.name,
         name="egiStartRecording",
         deviceLabel="netstation",
@@ -341,7 +348,7 @@ def test_start_recording_component_writes_begin_recording(routine):
 
 
 def test_start_recording_component_can_wait_for_drift(routine):
-    comp = EGIStartRecordingComponent(
+    comp = EgiStartRecordingComponent(
         routine.exp, routine.name,
         name="egiStartRecording",
         deviceLabel="netstation",
@@ -369,7 +376,7 @@ def test_start_recording_component_can_wait_for_drift(routine):
 
 
 def test_stop_recording_component_writes_end_recording(routine):
-    comp = EGIStopRecordingComponent(
+    comp = EgiStopRecordingComponent(
         routine.exp, routine.name,
         name="egiStopRecording",
         deviceLabel="netstation",
@@ -382,7 +389,7 @@ def test_stop_recording_component_writes_end_recording(routine):
 
 
 def test_send_event_component_syncs_to_flip_by_default(routine):
-    comp = EGISendEventComponent(
+    comp = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         deviceLabel="netstation",
@@ -401,7 +408,7 @@ def test_send_event_component_syncs_to_flip_by_default(routine):
 
 
 def test_send_event_component_direct_call_when_not_syncing(routine):
-    comp = EGISendEventComponent(
+    comp = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         deviceLabel="netstation",
@@ -422,12 +429,12 @@ def test_send_event_target_is_studio_safe_text_field(routine):
         name="stimulus",
         text="hello",
     )
-    connect = EGIConnectComponent(
+    connect = EgiConnectComponent(
         routine.exp, routine.name,
         name="egiConnect",
         measureRefresh=False,
     )
-    marker = EGISendEventComponent(
+    marker = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
     )
@@ -449,7 +456,7 @@ def test_send_event_target_is_studio_safe_text_field(routine):
 
 
 def test_send_event_target_param_serializes_without_bound_methods():
-    target = EGISendEventComponent.getTemplateJSON()["params"]["targetComponent"]
+    target = EgiSendEventComponent.getTemplateJSON()["params"]["targetComponent"]
 
     assert target["allowedVals"] == []
     assert target["allowedLabels"] == []
@@ -462,7 +469,7 @@ def test_send_event_can_bind_to_visual_component_start(routine):
         text="hello",
         startVal=1.5,
     )
-    marker = EGISendEventComponent(
+    marker = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         targetComponent="stimulus",
@@ -489,7 +496,7 @@ def test_send_event_can_bind_to_visual_component_start(routine):
 
 
 def test_send_event_rejects_target_below_marker(routine):
-    marker = EGISendEventComponent(
+    marker = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         targetComponent="stimulus",
@@ -507,7 +514,7 @@ def test_send_event_rejects_target_below_marker(routine):
 
 
 def test_send_event_rejects_missing_target(routine):
-    marker = EGISendEventComponent(
+    marker = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         targetComponent="renamedStimulus",
@@ -525,7 +532,7 @@ def test_send_event_rejects_disabled_target(routine):
         text="hello",
     )
     stimulus.params["disabled"].val = True
-    marker = EGISendEventComponent(
+    marker = EgiSendEventComponent(
         routine.exp, routine.name,
         name="egiSendEvent",
         targetComponent="stimulus",
@@ -624,7 +631,7 @@ def test_device_backend_no_longer_passes_async_events():
 
 
 def test_display_timing_measures_and_records(routine):
-    comp = EGIStartRecordingComponent(
+    comp = EgiStartRecordingComponent(
         routine.exp, routine.name,
         name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=True,
@@ -640,7 +647,7 @@ def test_display_timing_measures_and_records(routine):
 
 
 def test_display_timing_can_be_switched_off(routine):
-    comp = EGIStartRecordingComponent(
+    comp = EgiStartRecordingComponent(
         routine.exp, routine.name,
         name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=False,
@@ -657,7 +664,7 @@ def test_schedule_check_skips_routines_with_no_fixed_duration(routine):
     A Routine ended by a keypress has no fixed interval, so there is nothing
     for a beat to build against. Skipping it is correct, not a limitation.
     """
-    comp = EGIStartRecordingComponent(
+    comp = EgiStartRecordingComponent(
         routine.exp, routine.name,
         name="egiStartRecording", deviceLabel="netstation",
         measureRefresh=False,
@@ -672,7 +679,7 @@ def test_schedule_check_skips_routines_with_no_fixed_duration(routine):
 
 
 def test_component_end_resolution():
-    cls = EGIStartRecordingComponent
+    cls = EgiStartRecordingComponent
     from psychopy.experiment.params import Param
 
     def comp(startVal, stopVal, stopType):

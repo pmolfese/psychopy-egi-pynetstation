@@ -14,7 +14,7 @@ from psychopy_egi_pynetstation.components._base import (
 )
 
 
-class EGIConnectComponent(NetStationInitComponent):
+class EgiConnectComponent(NetStationInitComponent):
     """
     Creates an EGI/Magstim NetStation client from the network settings in this
     Component, then opens the TCP/IP connection when the Component starts.
@@ -77,7 +77,7 @@ class EGIConnectComponent(NetStationInitComponent):
             strictECI=strictECI,
             disabled=disabled,
         )
-        self.type = "EGIConnect"
+        self.type = "EgiConnect"
 
     def writeInitCode(self, buff):
         """
@@ -118,5 +118,4 @@ class EGIConnectComponent(NetStationInitComponent):
             buff.setIndentLevel(-indented, relative=True)
 
 
-EgiConnectComponent = EGIConnectComponent
-NetStationConnectComponent = EGIConnectComponent
+NetStationConnectComponent = EgiConnectComponent

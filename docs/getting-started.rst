@@ -33,8 +33,8 @@ Choose an interface
 
 The installation supports three interfaces to the same NetStation wrapper:
 
-* **Studio Components backed by Device Manager** for experiments assembled in
-  PsychoPy Studio;
+* **Builder or Studio Components backed by Device Manager** for experiments
+  assembled in PsychoPy;
 * a **direct Python import** for the smallest code-only setup; or
 * PsychoPy's **Device Manager** when a code experiment already uses its shared
   device registry.
@@ -42,12 +42,17 @@ The installation supports three interfaces to the same NetStation wrapper:
 Builder is not required for either Python option. See :doc:`python-api` for the
 two code-only forms and their common recording workflow.
 
-Studio quick start
-------------------
+Builder and Studio quick start
+------------------------------
 
-Open Studio's Components panel and expand **I/O > EEG**. EGI Start Recording,
-EGI Send Event, and EGI Stop Recording should appear alongside PsychoPy's other
-EEG Components. Configure the device, then add the Components to the Flow:
+Both PsychoPy Studio and the classic desktop Builder in supported PsychoPy
+2026.1+ releases provide Device Manager. Neither interface needs a Connect or
+Disconnect Component. PsychoPy versions before 2026.1 are not supported by
+this plugin.
+
+Open the Components panel and expand **I/O > EEG**. EGI Start Recording, EGI
+Send Event, and EGI Stop Recording should appear alongside PsychoPy's other EEG
+Components. Configure the device, then add the Components to the Flow:
 
 .. rst-class:: workflow
 

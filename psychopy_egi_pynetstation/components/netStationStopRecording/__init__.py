@@ -6,7 +6,7 @@ from psychopy_egi_pynetstation.components._device import (
 )
 
 
-class EGIStopRecordingComponent(NetStationCommandComponent):
+class EgiStopRecordingComponent(NetStationCommandComponent):
     """
     Stops EEG recording on a NetStation amplifier when this Component starts.
 
@@ -42,14 +42,13 @@ class EGIStopRecordingComponent(NetStationCommandComponent):
             deviceLabel=deviceLabel,
             disabled=disabled,
         )
-        self.type = "EGIStopRecording"
+        self.type = "EgiStopRecording"
 
     def writeCommandCode(self, buff):
         code = "%(name)s.endRecording()\n"
         buff.writeIndentedLines(code % self.params)
 
 
-EgiStopRecordingComponent = EGIStopRecordingComponent
-NetStationStopRecordingComponent = EGIStopRecordingComponent
+NetStationStopRecordingComponent = EgiStopRecordingComponent
 
-EGIStopRecordingComponent.registerBackend(EGINetStationDeviceBackend)
+EgiStopRecordingComponent.registerBackend(EGINetStationDeviceBackend)

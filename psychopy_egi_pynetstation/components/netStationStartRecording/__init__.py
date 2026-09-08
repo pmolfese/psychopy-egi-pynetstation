@@ -12,7 +12,7 @@ from psychopy_egi_pynetstation.components._display import (
 )
 
 
-class EGIStartRecordingComponent(
+class EgiStartRecordingComponent(
     NetStationDisplayTimingMixin, NetStationCommandComponent
 ):
     """
@@ -57,7 +57,7 @@ class EGIStartRecordingComponent(
             deviceLabel=deviceLabel,
             disabled=disabled,
         )
-        self.type = "EGIStartRecording"
+        self.type = "EgiStartRecording"
         self.exp.requirePsychopyLibs(['logging'])
         addDisplayTimingParams(
             self,
@@ -117,7 +117,6 @@ class EGIStartRecordingComponent(
         buff.writeIndentedLines(code % inits)
 
 
-EgiStartRecordingComponent = EGIStartRecordingComponent
-NetStationStartRecordingComponent = EGIStartRecordingComponent
+NetStationStartRecordingComponent = EgiStartRecordingComponent
 
-EGIStartRecordingComponent.registerBackend(EGINetStationDeviceBackend)
+EgiStartRecordingComponent.registerBackend(EGINetStationDeviceBackend)

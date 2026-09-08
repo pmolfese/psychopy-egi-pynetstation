@@ -13,10 +13,11 @@ with NetStation's ECI server through ``egi-pynetstation``.
    sponsored by EGI or Magstim EGI. It is an independent, community-maintained
    solution for using NetStation with PsychoPy.
 
-Use the plugin through three Studio Components under **I/O > EEG**, through a
-direct Python ``EGINetStation`` instance, or through PsychoPy's Device Manager.
-Studio uses Device Manager for network configuration and presents an editable
-manual profile because NetStation amplifiers cannot be auto-discovered.
+Use the plugin through three Studio or desktop Builder Components under
+**I/O > EEG**, through a direct Python ``EGINetStation`` instance, or through
+PsychoPy's Device Manager. Supported PsychoPy 2026.1+ graphical interfaces use
+Device Manager for network configuration and present an editable manual profile
+because NetStation amplifiers cannot be auto-discovered.
 
 Automatic clock-drift correction is enabled by default. After the initial NTP
 synchronization, the plugin samples the amplifier clock on a background thread

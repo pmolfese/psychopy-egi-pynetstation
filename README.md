@@ -12,9 +12,9 @@ experiments. It uses the NetStation ECI network protocol through the
 > sponsored by EGI or Magstim EGI. It is an independent, community-maintained
 > solution for using NetStation with PsychoPy.
 
-Use the plugin in any of three ways: with three PsychoPy Studio Components
-backed by Device Manager, by directly constructing the Python hardware wrapper,
-or through Device Manager from Coder.
+Use the plugin in any of three ways: with three PsychoPy Studio or desktop
+Builder Components backed by Device Manager, by directly constructing the
+Python hardware wrapper, or through Device Manager from Coder.
 
 > **Validation status:** version 0.1.0 is the initial public-release candidate. Automated
 > tests cover the wrapper API, generated Builder code, event defaults, and
@@ -59,7 +59,12 @@ Builder-generated experiment. PsychoPy discovers this plugin through its
 installed entry points, and the plugin's hardware wrapper imports the underlying
 network library internally.
 
-## Studio quick start
+## Builder and Studio quick start
+
+Both PsychoPy Studio and the classic desktop Builder in supported PsychoPy
+2026.1+ releases provide Device Manager. Neither interface needs a Connect or
+Disconnect Component. PsychoPy versions before 2026.1 are not supported by
+this plugin.
 
 Configure the device once, then add the Components to the Flow:
 
@@ -185,11 +190,12 @@ the plugin also exposes `wait_for_drift()` for code copied from upstream
 examples. Because it intentionally blocks, use it during setup or a planned
 pre-run pause, never inside `win.callOnFlip()` or near a visual flip.
 
-## Studio Components
+## Builder and Studio Components
 
-Three Components appear under **I/O > EEG**. Each uses the EGI NetStation
-device selected from Device Manager and fires once when the Component starts
-(its normal stop time/duration is not used):
+Three Components appear under **I/O > EEG** in Studio and supported desktop
+Builder releases. Each uses the EGI NetStation device selected from Device
+Manager and fires once when the Component starts (its normal stop time/duration
+is not used):
 
 1. **EGI Start Recording** - starts EEG recording, and performs the ECI NTP sync
    which establishes the event timestamp epoch. It can optionally wait until

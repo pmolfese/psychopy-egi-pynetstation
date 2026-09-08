@@ -1,11 +1,13 @@
-Studio Component reference
-==========================
+Builder and Studio Component reference
+======================================
 
-The plugin exposes three Components under **I/O > EEG** in PsychoPy Studio:
-EGI Start Recording, EGI Send Event, and EGI Stop Recording. The former EGI
-Connect and EGI Disconnect classes remain loadable for older ``.psyexp`` files,
-but are hidden from the Component panel. New experiments should use Device
-Manager for connection setup and automatic shutdown.
+The plugin exposes three Components under **I/O > EEG** in PsychoPy Studio and
+the classic desktop Builder in supported PsychoPy 2026.1+ releases: EGI Start
+Recording, EGI Send Event, and EGI Stop Recording. Both interfaces provide
+Device Manager. The former EGI Connect and EGI Disconnect classes remain
+loadable for older ``.psyexp`` files, but are hidden from the Component panel.
+New experiments should use Device Manager for connection setup and automatic
+shutdown. PsychoPy versions before 2026.1 are not supported by this plugin.
 
 Configure the device
 --------------------

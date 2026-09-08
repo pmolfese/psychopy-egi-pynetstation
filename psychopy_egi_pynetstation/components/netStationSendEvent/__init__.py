@@ -9,7 +9,7 @@ from psychopy_egi_pynetstation.components._device import (
 )
 
 
-class EGISendEventComponent(NetStationCommandComponent):
+class EgiSendEventComponent(NetStationCommandComponent):
     """
     Sends a single event marker to a NetStation amplifier when this Component starts.
 
@@ -63,7 +63,7 @@ class EGISendEventComponent(NetStationCommandComponent):
             deviceLabel=deviceLabel,
             disabled=disabled,
         )
-        self.type = "EGISendEvent"
+        self.type = "EgiSendEvent"
 
         # --- Event params ---
         self.order += [
@@ -256,7 +256,6 @@ class EGISendEventComponent(NetStationCommandComponent):
         self._writeSendCode(buff, syncScreenRefresh=True)
         buff.setIndentLevel(-1, relative=True)
 
-EgiSendEventComponent = EGISendEventComponent
-NetStationSendEventComponent = EGISendEventComponent
+NetStationSendEventComponent = EgiSendEventComponent
 
-EGISendEventComponent.registerBackend(EGINetStationDeviceBackend)
+EgiSendEventComponent.registerBackend(EGINetStationDeviceBackend)

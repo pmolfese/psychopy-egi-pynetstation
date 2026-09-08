@@ -3,7 +3,7 @@ from pathlib import Path
 from psychopy_egi_pynetstation.components._base import NetStationCommandComponent
 
 
-class EGIDisconnectComponent(NetStationCommandComponent):
+class EgiDisconnectComponent(NetStationCommandComponent):
     """
     Closes the TCP/IP connection to a NetStation amplifier when this Component starts.
 
@@ -41,12 +41,11 @@ class EGIDisconnectComponent(NetStationCommandComponent):
             deviceLabel=deviceLabel,
             disabled=disabled,
         )
-        self.type = "EGIDisconnect"
+        self.type = "EgiDisconnect"
 
     def writeCommandCode(self, buff):
         code = "%(name)s.disconnect()\n"
         buff.writeIndentedLines(code % self.params)
 
 
-EgiDisconnectComponent = EGIDisconnectComponent
-NetStationDisconnectComponent = EGIDisconnectComponent
+NetStationDisconnectComponent = EgiDisconnectComponent

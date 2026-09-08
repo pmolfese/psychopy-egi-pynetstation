@@ -28,11 +28,13 @@ project uses semantic versioning after the initial `0.x` development series.
   PsychoPy Builder scripts.
 - GitHub Actions for supported-Python tests, full PsychoPy tests, distribution
   checks, and PyPI Trusted Publishing.
+- A package-level PNG icon for the PsychoPy plugin catalog.
 
 ### Changed
 
-- Builder widget titles now capitalize `EGI` consistently, while the former
-  mixed-case component imports remain available as compatibility aliases.
+- Component classes and entry points use an `Egi` prefix so PsychoPy Studio's
+  ComponentButton title formatter renders their names without splitting the
+  acronym as `E GI`.
 - EGI Send Event can now bind to a selected visual Component in its Routine
   and queue the marker on that Component's first drawing flip. Unsafe target
   ordering is rejected instead of silently producing a one-frame delay.

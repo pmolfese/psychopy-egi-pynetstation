@@ -18,6 +18,13 @@ so this profile is an editable set of defaults rather than a detected device.
 Give it a label such as ``netstation``. That label appears in the **Device**
 selector on all three Components.
 
+.. figure:: _static/screenshots/device-manager-network.png
+   :alt: EGI NetStation network settings in PsychoPy Device Manager
+   :width: 80%
+
+   Replace the example addresses with the NetStation host and amplifier NTP
+   addresses used by your lab.
+
 Profiles are stored in PsychoPy's per-user ``devices.json``, not in the
 ``.psyexp`` file. A ``.psyexp`` stores only the selected label. If the project
 moves to another computer or user account, install the plugin and recreate or
@@ -64,7 +71,8 @@ generated, the Python script contains the resolved device setup code.
      - Prints every ECI command and response byte for diagnostics.
    * - **ECI error log file**
      - blank
-     - Optional JSON-lines diagnostic log path.
+     - Optional JSON-lines diagnostics path. Despite the historical label,
+       this records drift-model status and session settings as well as errors.
    * - **Strict ECI responses**
      - off
      - Raises when a blocking ECI command receives a rejected or malformed
@@ -75,6 +83,30 @@ experiment shutdown, PsychoPy's Device Manager calls the wrapper's idempotent
 ``close()`` method. Cleanup stops active recording, flushes queued events,
 reports session health, and disconnects. The wrapper also has a best-effort
 destructor fallback.
+
+The **Drift** tab enables automatic background sampling by default. The
+optional warmup checkbox builds a provisional early-session model while the
+ordinary model is still collecting evidence:
+
+.. figure:: _static/screenshots/device-manager-drift.png
+   :alt: EGI NetStation drift settings with drift warmup enabled
+   :width: 80%
+
+When **ECI error log file** is set to a writable ``.jsonl`` path, drift
+logging is automatic; users do not need to add a Code Component or make a
+per-trial logging call. The file includes the effective settings at session
+start, model engagement and promotion, periodic ``drift_model_status``
+records, and failures. A Code Component can add a snapshot at a meaningful
+non-time-critical point with::
+
+   deviceManager.getDevice("netstation").logRecord({
+       "record": "drift_model_snapshot",
+       **deviceManager.getDevice("netstation").driftEstimate(),
+   })
+
+Replace ``"netstation"`` with the configured Device label. Store the result
+of ``getDevice()`` first if snapshots are taken more than once. Do not put
+this call in a flip callback.
 
 Options shared by all three Components
 --------------------------------------

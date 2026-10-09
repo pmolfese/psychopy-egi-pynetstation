@@ -144,17 +144,38 @@ Windows before Python 3.13. PsychoPy visual experiments should continue using
 Session diagnostics
 -------------------
 
+The standard drift-model output is a JSON-lines diagnostics file. Supply its
+path once when constructing the wrapper::
+
+   ns = EGINetStation(..., errorLog=diagnostics_path)
+
+The file is written incrementally. Despite the historical ``errorLog`` name,
+it is not limited to errors: it automatically includes a ``session_start``
+record with the effective drift settings, model-engagement and promotion
+records, periodic ``drift_model_status`` records, and any ECI or drift
+failures. No periodic logging call is required from experiment code.
+
+To save a complete snapshot of the current model at the end of a block or
+another meaningful point, append it to the configured diagnostics file with
+one line::
+
+   ns.logRecord({"record": "drift_model_snapshot", **ns.driftEstimate()})
+
+Call this between trials or during cleanup, not in ``win.callOnFlip()`` or
+another timing-critical callback. ``driftEstimate()`` returns the model as a
+dictionary, while ``driftSettings()`` returns every drift setting actually in
+effect.
+
 The combined summary remains available after disconnect::
 
    summary = ns.sessionSummary()
    if not summary["ok"]:
        print(summary)
 
-Use ``ns.driftSettings()`` to record every drift setting that was actually in
-effect. For a diagnostic session, construct the wrapper with
-``strictECI=True`` or call ``ns.setStrictECI(True)`` after connecting. Strict
-mode makes failed responses raise from blocking calls; asynchronous sends
-still report their failures during cleanup.
+For a diagnostic session, construct the wrapper with ``strictECI=True`` or
+call ``ns.setStrictECI(True)`` after connecting. Strict mode makes failed
+responses raise from blocking calls; asynchronous sends still report their
+failures during cleanup.
 
 One connection supports one recording epoch. To record again with the same
 wrapper, call ``endRecording()``, ``disconnect()``, ``connect()``, and then

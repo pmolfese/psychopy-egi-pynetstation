@@ -46,8 +46,9 @@ characters and inspect the PsychoPy log at experiment end for both
 asynchronous worker failures and rejected ECI responses. Stop recording or
 disconnect cleanly so queued events can flush. For detailed diagnostics, set a
 writable **ECI error log file** and optionally enable **Strict ECI responses**
-in Device Manager. Coder experiments can inspect ``sessionSummary()``,
-``eventErrors()``, and ``eciErrors()`` directly.
+in Device Manager. Despite its name, this JSON-lines file also records the
+drift-model lifecycle and periodic status automatically. Coder experiments can
+inspect ``sessionSummary()``, ``eventErrors()``, and ``eciErrors()`` directly.
 
 “This connection has already recorded”
 --------------------------------------

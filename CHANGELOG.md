@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. The
 project uses semantic versioning after the initial `0.x` development series.
 
-## 0.1.0 - forthcoming
+## 0.1.0 - 2026-10-09
 
 ### Added
 

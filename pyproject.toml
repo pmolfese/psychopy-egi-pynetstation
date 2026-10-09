@@ -36,7 +36,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/pmolfese/psychopy-egi-pynetstation"
 repository = "https://github.com/pmolfese/psychopy-egi-pynetstation"
-documentation = "https://github.com/pmolfese/psychopy-egi-pynetstation#readme"
+documentation = "https://psychopy-egi-pynetstation.readthedocs.io/"
 issues = "https://github.com/pmolfese/psychopy-egi-pynetstation/issues"
 changelog = "https://github.com/pmolfese/psychopy-egi-pynetstation/blob/main/CHANGELOG.md"
 upstream = "https://github.com/nimh-sfim/egi-pynetstation"

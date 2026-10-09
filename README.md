@@ -1,5 +1,8 @@
 # PsychoPy EGI NetStation
 
+[![PyPI](https://img.shields.io/pypi/v/psychopy-egi-pynetstation.svg)](https://pypi.org/project/psychopy-egi-pynetstation/)
+[![Documentation Status](https://readthedocs.org/projects/psychopy-egi-pynetstation/badge/?version=latest)](https://psychopy-egi-pynetstation.readthedocs.io/en/latest/)
+
 `psychopy-egi-pynetstation` adds EGI/Magstim NetStation recording control and
 event markers to [PsychoPy](https://www.psychopy.org/) Builder and Python
 experiments. It uses the NetStation ECI network protocol through the
@@ -16,11 +19,10 @@ Use the plugin in any of three ways: with three PsychoPy Studio or desktop
 Builder Components backed by Device Manager, by directly constructing the
 Python hardware wrapper, or through Device Manager from Coder.
 
-> **Validation status:** version 0.1.0 is the initial public-release candidate. Automated
-> tests cover the wrapper API, generated Builder code, event defaults, and
-> display-timing helpers. End-to-end validation against a physical or simulated
-> NetStation amplifier is still in progress; validate the complete workflow in
-> your lab before collecting production data.
+> **Validation status:** version 0.1.0 has been exercised end to end with a
+> NetStation system. Automated tests cover the wrapper API, generated Builder
+> code, event defaults, and display-timing helpers. Validate the complete
+> workflow on your own lab hardware before collecting production data.
 
 ## Requirements
 
@@ -33,20 +35,14 @@ Python hardware wrapper, or through Device Manager from Coder.
 
 ## Installation
 
-After the first PyPI release, install the package from PsychoPy's
-Plugin/Packages Manager by searching for `psychopy-egi-pynetstation`, or run:
+Install the package from PsychoPy's Plugin/Packages Manager by searching for
+`psychopy-egi-pynetstation`, or run:
 
 ```bash
 python -m pip install psychopy-egi-pynetstation
 ```
 
-Restart PsychoPy after installation so Studio discovers the plugin. Until the
-first PyPI release is available, install the current source directly from
-GitHub:
-
-```bash
-python -m pip install git+https://github.com/pmolfese/psychopy-egi-pynetstation.git
-```
+Restart PsychoPy after installation so Studio discovers the plugin.
 
 For development from a local checkout:
 
@@ -189,6 +185,34 @@ ns.waitForDrift(timeout=300.0, poll=1.0)
 the plugin also exposes `wait_for_drift()` for code copied from upstream
 examples. Because it intentionally blocks, use it during setup or a planned
 pre-run pause, never inside `win.callOnFlip()` or near a visual flip.
+
+### Save the drift model and diagnostics
+
+The standard drift-model output is a JSON-lines diagnostics file. In Builder
+or Studio, set **Device Manager > EGI NetStation > Data > ECI error log file**
+to a writable `.jsonl` path. Despite the option's historical name, the file is
+not limited to errors: it automatically records the session's effective drift
+settings, clock information, model engagement and promotion, periodic
+`drift_model_status` updates, and any ECI or drift failures. No per-trial code
+is required.
+
+In Python, supply the same path when the device is constructed:
+
+```python
+ns = EGINetStation(..., errorLog=diagnostics_path)
+```
+
+To add a complete snapshot of the current model at a meaningful point, such
+as the end of a block, append it to that configured file with one line:
+
+```python
+ns.logRecord({"record": "drift_model_snapshot", **ns.driftEstimate()})
+```
+
+Take explicit snapshots between trials or during cleanup, not in
+`win.callOnFlip()` or another timing-critical callback. `driftEstimate()`
+returns the current model as a dictionary; `driftSettings()` returns the
+settings actually in effect.
 
 ## Builder and Studio Components
 

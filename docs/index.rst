@@ -27,11 +27,10 @@ or configure the behavior through Device Manager or the Python API.
 
 .. important::
 
-   Version |release| is an initial public-release candidate. The wrapper and
-   generated Builder code are tested automatically, but end-to-end validation
-   with physical or simulated NetStation hardware is still in progress.
-   Validate the complete workflow in your lab before collecting production
-   data.
+   Version |release| has been exercised end to end with a NetStation system,
+   and the wrapper and generated Builder code are tested automatically.
+   Validate the complete workflow on your own lab hardware before collecting
+   production data.
 
 Start here
 ----------

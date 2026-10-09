@@ -22,12 +22,6 @@ PsychoPy so Studio discovers the new entry points:
 
    python -m pip install psychopy-egi-pynetstation
 
-Until the first PyPI release, install the source directly:
-
-.. code-block:: console
-
-   python -m pip install git+https://github.com/pmolfese/psychopy-egi-pynetstation.git
-
 Choose an interface
 -------------------
 
@@ -54,6 +48,13 @@ Open the Components panel and expand **I/O > EEG**. EGI Start Recording, EGI
 Send Event, and EGI Stop Recording should appear alongside PsychoPy's other EEG
 Components. Configure the device, then add the Components to the Flow:
 
+.. figure:: _static/screenshots/components.png
+   :alt: PsychoPy Builder with the three EGI Components visible under EEG
+   :width: 100%
+
+   The plugin adds EGI Start Recording, EGI Send Event, and EGI Stop Recording
+   to the EEG section of the Components panel.
+
 .. rst-class:: workflow
 
 1. Open **Device Manager**, add **EGI NetStation**, choose the manual profile,
@@ -63,6 +64,19 @@ Components. Configure the device, then add the Components to the Flow:
 3. **EGI Send Event** wherever a marker is needed. Use a four-character event
    type such as ``stim`` or ``resp`` and select the same device.
 4. **EGI Stop Recording** near the end.
+
+When adding the device, use a stable label such as ``netstation`` and select
+the **EGI NetStation (manual configuration)** profile:
+
+.. figure:: _static/screenshots/device-manager-add.png
+   :alt: Adding an EGI NetStation manual configuration in Device Manager
+   :width: 70%
+
+The Start Recording Component then selects that same label:
+
+.. figure:: _static/screenshots/start-recording.png
+   :alt: EGI Start Recording Component selecting the netstation device
+   :width: 70%
 
 NetStation amplifiers cannot be auto-discovered. The listed manual profile is
 an editable starting point, not evidence that an amplifier was found.
@@ -87,6 +101,20 @@ disconnects; keep EGI Stop Recording to define the precise recording endpoint.
 
 One connection supports one recording epoch. Use separate experiment runs when
 another recording epoch is required.
+
+For a visual marker, enter the visual Component's exact name in **Target visual
+Component**. In this example, the ``stim`` marker is attached to the first flip
+that draws the Component named ``text``:
+
+.. figure:: _static/screenshots/send-event.png
+   :alt: EGI Send Event configured for the text visual Component
+   :width: 70%
+
+.. figure:: _static/screenshots/send-event-timeline.png
+   :alt: Builder timeline with the EGI event aligned to a visual Component
+   :width: 100%
+
+   Put EGI Send Event below its target visual Component in the Routine.
 
 .. _coder-quick-start:
 

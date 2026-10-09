@@ -83,6 +83,57 @@ or call ``ns.waitForDrift(timeout=300.0, poll=1.0)`` immediately after
 ``beginRecording()``. This is a deliberate setup pause, not a per-trial timing
 operation.
 
+Marking a keyboard response and recording reaction time
+--------------------------------------------------------
+
+A response marker should be sent when PsychoPy detects the response rather
+than being synchronized to the next display refresh. PsychoPy's Keyboard
+Component records the reaction time using the keyboard backend's clock; this
+value can also be attached to the NetStation event as event data.
+
+For example, add a Keyboard Component named ``key_resp`` and configure it to
+store the first key. Place an **EGI Send Event** Component below it in the same
+Routine, then use:
+
+* **Target visual Component:** leave blank
+* **Start type:** condition
+* **Start value:** ``key_resp.keys``
+* **Sync to screen refresh:** off
+* **Event type:** ``resp``
+* **Event data:** ``{'rtim': key_resp.rt, 'resp': key_resp.keys}``
+
+NetStation event-data keys must contain exactly four characters, which is why
+``rtim`` and ``resp`` are used above. The reaction time is expressed in
+seconds.
+
+Placing EGI Send Event below the Keyboard Component is important. Builder
+executes Components in order on each frame, so the Keyboard Component must
+detect and store the key before the event's start condition is evaluated.
+
+With screen synchronization disabled, the plugin timestamps the event
+immediately when the response condition is detected. Enabling synchronization
+would postpone the marker until the next display refresh and should normally
+be avoided for responses.
+
+The NetStation event time and the ``rtim`` value have slightly different
+meanings. The event time records when the experiment detected and submitted
+the response marker, while ``rtim`` is PsychoPy's keyboard-measured interval
+from the Keyboard Component's clock reset to the keypress. The event marker
+may therefore be up to approximately one frame later than the keyboard
+timestamp, depending on when the response is detected within the frame loop.
+
+``key_resp.keys`` and ``key_resp.rt`` are scalar values when the Keyboard
+Component is configured to store the first or last key. If it stores all keys,
+they can become lists, which cannot be attached directly as NetStation event
+data. Select the relevant response explicitly instead, for example::
+
+   {'rtim': key_resp.rt[-1], 'resp': key_resp.keys[-1]}
+
+For studies requiring the EEG marker to represent the physical button closure
+with hardware-level precision, use a response device capable of sending a
+trigger directly to the acquisition system. Software markers are appropriate
+when the small polling and scheduling delay is acceptable.
+
 Display refresh and the frame beat
 ----------------------------------
 

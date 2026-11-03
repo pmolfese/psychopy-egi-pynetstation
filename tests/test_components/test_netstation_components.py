@@ -696,3 +696,106 @@ def test_component_end_resolution():
     assert cls._componentEnd(comp(0.0, 180, "duration (frames)")) is None
     assert cls._componentEnd(comp(0.0, "", "duration (s)")) is None
     assert cls._componentEnd(comp(0.0, "$myVar", "duration (s)")) is None
+
+
+@pytest.mark.parametrize('enabled', [False, True])
+def test_both_setup_paths_forward_dummy_mode(routine, enabled):
+    legacy = NetStationInitComponent(routine.exp, routine.name, dummyMode=enabled,
+                                     measureRefresh=False)
+    backend = EGINetStationDeviceBackend({'deviceName': None, 'dummyMode': enabled})
+    backend.params['name'].val = 'netstation'
+    for comp, writer in [(legacy, legacy.writeInitCode), (backend, backend.writeDeviceCode)]:
+        buff = IndentingBuffer(target='PsychoPy')
+        writer(buff)
+        script = buff.getvalue()
+        assert f'dummyMode={enabled}' in script
+        assert comp.params['dummyMode'].categ == 'Device'
+        compile(script, '<dummy setup>', 'exec')
+
+
+@pytest.mark.parametrize('legacy', [False, True])
+def test_startup_mode_is_in_expinfo_before_device_creation(routine, legacy):
+    import ast
+    from psychopy import prefs
+    from psychopy_egi_pynetstation.startup import DUMMY_MODE, REAL_MODE, modeKey
+
+    original_info = routine.exp.settings.params['Experiment info'].val
+    backend = EGINetStationDeviceBackend({'deviceName': None, 'chooseAtStartup': True,
+                                         'askOnFailure': True})
+    backend.params['name'].val = 'netstation'
+    previous = prefs.devices.get('netstation')
+    prefs.devices['netstation'] = backend
+    try:
+        if legacy:
+            comp = EgiConnectComponent(routine.exp, routine.name, chooseAtStartup=True,
+                                       askOnFailure=True, measureRefresh=False)
+        else:
+            comp = EgiStartRecordingComponent(routine.exp, routine.name, deviceLabel="netstation", measureRefresh=False)
+        routine.addComponent(comp)
+        # Multiple consumers must not produce duplicate fields or mutate saved settings.
+        if not legacy:
+            routine.addComponent(EgiStopRecordingComponent(routine.exp, routine.name, deviceLabel="netstation"))
+        script = routine.exp.writeScript(expPath=None)
+    finally:
+        if previous is None:
+            prefs.devices.pop('netstation', None)
+        else:
+            prefs.devices['netstation'] = previous
+    tree = ast.parse(script)
+    info_assignment = next(node for node in tree.body if isinstance(node, ast.Assign)
+                           and any(isinstance(t, ast.Name) and t.id == 'expInfo' for t in node.targets))
+    fields = {ast.literal_eval(k): v for k, v in zip(info_assignment.value.keys, info_assignment.value.values)}
+    assert ast.literal_eval(fields[modeKey('netstation')]) == [REAL_MODE, DUMMY_MODE]
+    assert 'dummyMode=_nsResolveMode(expInfo,' in script
+    assert '.connect(onFailure=_nsAskFailure)' in script
+    assert '.setRunInfo(expInfo,' in script
+    assert routine.exp.settings.params['Experiment info'].val == original_info
+    assert not backend.params['dummyMode']
+    compile(script, '<startup integration>', 'exec')
+
+
+def test_generated_setup_honors_dummy_choice_before_constructing_client(monkeypatch):
+    from psychopy_egi_pynetstation.hardware.netstation import EGINetStation
+    from psychopy_egi_pynetstation.startup import DUMMY_MODE, modeKey
+
+    monkeypatch.setattr('psychopy_egi_pynetstation.hardware.netstation.NetStation',
+                        lambda *args, **kwargs: pytest.fail('real client constructed'))
+    class Manager:
+        def addDevice(self, deviceClass, deviceName, **kwargs):
+            self.device = EGINetStation(**kwargs)
+        def getDevice(self, name):
+            return self.device
+    backend = EGINetStationDeviceBackend({'deviceName': None, 'chooseAtStartup': True,
+                                         'askOnFailure': True})
+    backend.params['name'].val = 'netstation'
+    buff = IndentingBuffer(target='PsychoPy')
+    backend.writeDeviceCode(buff)
+    manager = Manager()
+    info = {modeKey('netstation'): DUMMY_MODE}
+    exec(buff.getvalue(), {'deviceManager': manager, 'expInfo': info})
+    assert manager.device.dummyMode
+    assert info['netstation.netstation.effective_mode'] == 'dummy'
+    manager.device.close()
+
+
+def test_legacy_init_passes_recovery_callback(routine):
+    comp = NetStationInitComponent(routine.exp, routine.name, askOnFailure=True,
+                                    measureRefresh=False)
+    buff = IndentingBuffer(target='PsychoPy')
+    comp.writeInitCode(buff)
+    assert 'onConnectionFailure=_nsAskFailure if True else None' in buff.getvalue()
+
+
+def test_startup_fields_keep_devices_separate_and_default_modes(routine):
+    import ast
+    from psychopy_egi_pynetstation.components._startup import addStartupField
+    from psychopy_egi_pynetstation.startup import DUMMY_MODE, REAL_MODE, modeKey
+    for name, dummy in [('a', False), ('b', True)]:
+        backend = EGINetStationDeviceBackend({'deviceName': None, 'chooseAtStartup': True,
+                                             'dummyMode': dummy})
+        addStartupField(routine.exp, name, backend.params)
+        addStartupField(routine.exp, name, backend.params)
+    info = ast.literal_eval(routine.exp.settings.params['Experiment info'].val)
+    assert info[modeKey('a')] == [REAL_MODE, DUMMY_MODE]
+    assert info[modeKey('b')] == [DUMMY_MODE, REAL_MODE]
+    assert 'participant' in info

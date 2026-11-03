@@ -3,6 +3,8 @@
 from psychopy.experiment.components import Param, getInitVals
 from psychopy.experiment.devices import DeviceBackend
 
+from ._startup import addStartupParams
+
 from psychopy_egi_pynetstation.hardware.netstation import (
     DEFAULT_AMP_IP,
     DEFAULT_NETSTATION_IP,
@@ -23,6 +25,7 @@ class EGINetStationDeviceBackend(DeviceBackend):
         super().__init__(profile)
         self.depends = []
         self.order += [
+            "dummyMode",
             "ip",
             "port",
             "ntpIP",
@@ -35,6 +38,14 @@ class EGINetStationDeviceBackend(DeviceBackend):
             "strictECI",
         ]
 
+        self.params["dummyMode"] = Param(
+            profile.get("dummyMode", False), valType="bool", inputType="bool", categ="Device",
+            label="Dummy mode — run without EEG hardware",
+            hint="Run offline: no EEG is recorded and no markers are sent to hardware.",
+        )
+        addStartupParams(
+            self, profile.get("chooseAtStartup", False), profile.get("askOnFailure", False)
+        )
         self.params["ip"] = Param(
             profile.get("ip", DEFAULT_NETSTATION_IP),
             valType="str", inputType="single", categ="Device",
@@ -140,11 +151,21 @@ class EGINetStationDeviceBackend(DeviceBackend):
         inits["driftWarmupEnabled"] = (
             mode != "'off'" and bool(self.params["driftWarmup"])
         )
+        inits["dummyExpression"] = "%(dummyMode)s" % inits
+        if self.params["chooseAtStartup"]:
+            inits["dummyExpression"] = (
+                "_nsResolveMode(expInfo, %(name)s, dummyMode=%(dummyMode)s, chooseAtStartup=True)"
+            ) % inits
+        inits["failureCallback"] = "onFailure=_nsAskFailure" if self.params["askOnFailure"] else ""
         code = (
+            "from psychopy_egi_pynetstation.startup import (\n"
+            "    resolveDummyMode as _nsResolveMode, askConnectionFailure as _nsAskFailure,\n"
+            ")\n"
             "# initialize and connect %(name)s\n"
             "deviceManager.addDevice(\n"
             "    deviceClass='psychopy_egi_pynetstation.hardware.netstation.EGINetStation',\n"
             "    deviceName=%(name)s,\n"
+            "    dummyMode=%(dummyExpression)s,\n"
             "    ip=%(ip)s,\n"
             "    port=%(port)s,\n"
             "    ntpIP=%(ntpIP)s or None,\n"
@@ -158,7 +179,8 @@ class EGINetStationDeviceBackend(DeviceBackend):
             "    errorLog=%(errorLog)s or None,\n"
             "    strictECI=%(strictECI)s,\n"
             ")\n"
-            "deviceManager.getDevice(%(name)s).connect()\n"
+            "deviceManager.getDevice(%(name)s).setRunInfo(expInfo, %(name)s)\n"
+            "deviceManager.getDevice(%(name)s).connect(%(failureCallback)s)\n"
         )
         buff.writeIndentedLines(code % inits)
 

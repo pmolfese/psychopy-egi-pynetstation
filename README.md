@@ -19,19 +19,103 @@ Use the plugin in any of three ways: with three PsychoPy Studio or desktop
 Builder Components backed by Device Manager, by directly constructing the
 Python hardware wrapper, or through Device Manager from Coder.
 
-> **Validation status:** version 0.1.0 has been exercised end to end with a
-> NetStation system. Automated tests cover the wrapper API, generated Builder
-> code, event defaults, and display-timing helpers. Validate the complete
-> workflow on your own lab hardware before collecting production data.
+> **Version 0.1.1** adds explicit dummy mode, an optional startup EEG-mode
+> selector, and opt-in connection-failure recovery. Configure them in Device
+> Manager, or use `EGINetStation(dummyMode=True)` for an offline Python run.
+>
+> **Validation status:** the 0.1.0 hardware workflow was exercised end to end
+> with NetStation. Version 0.1.1 includes automated tests that run without an amplifier,
+> including dummy sessions and generated Builder code. Hardware synchronization
+> and marker delivery still require validation on your lab system.
 
 ## Requirements
 
 - Python 3.10 or newer
 - PsychoPy 2026.1 or newer
-- A network-reachable NetStation host with ECI enabled
-- The NetStation host IP, ECI port (normally `55513`), and amplifier NTP IP
+- For real recording: a network-reachable NetStation host with ECI enabled
+- For real recording: the NetStation host IP, ECI port (normally `55513`),
+  and amplifier NTP IP
 
 `egi-pynetstation>=2.1.0` is installed automatically with this plugin.
+
+## Run without EEG hardware
+
+Enable **Dummy mode — run without EEG hardware** in the EGI NetStation
+Device Manager settings (or the legacy NetStation Init component). It defaults
+to off. Your recording and event components can stay in place.
+
+For Python experiments:
+
+```python
+from psychopy_egi_pynetstation import EGINetStation
+
+ns = EGINetStation(dummyMode=True)
+ns.connect()
+ns.beginRecording()
+ns.sendEvent(eventType="stim", label="face")
+ns.close()
+print(ns.sessionSummary())  # dummy_mode=True, simulated_events=1, events_sent=0
+```
+
+Dummy mode makes no network connections, starts no drift-sampling threads,
+and skips drift-readiness waits immediately. Event payloads are checked with
+upstream's event serializer and counted, but are not sent or saved as EEG.
+Clock methods use local monotonic time relative to the start of recording.
+A startup warning and session summary identify the run as simulated.
+
+Use this mode to rehearse experiment flow; it does not validate amplifier
+synchronization or hardware marker delivery. Detailed marker logging and ECI
+error-log output are not produced in dummy mode. The plugin and its Python
+dependencies are still required. Turn the checkbox off for data collection;
+real-mode connection failures do not automatically switch to dummy mode.
+
+### Choose EEG mode for each run
+
+Enable **Choose EEG mode at startup** in the device settings to add an
+**EEG mode (device name)** dropdown to the existing participant/session dialog:
+
+- **Record EEG** attempts the real NetStation connection.
+- **Dummy — no EEG recorded** skips both NetStation and amplifier communication.
+
+The saved **Dummy mode** checkbox supplies the dropdown default. Your choice
+applies only to the current run; it does not change the saved device settings.
+With startup selection disabled, the saved checkbox determines the mode.
+When the participant dialog is skipped, the saved default applies.
+
+### Ask after a failed connection
+
+Enable **Ask after connection failure** to show a recovery dialog during
+connection setup. Choose an action and press OK:
+
+- **Abort** (the default) stops with the original connection error.
+- **Retry** cleans up the failed client and makes a fresh connection attempt.
+- **Continue without EEG** switches this run to dummy mode.
+
+Cancel or closing the dialog also aborts. Both new settings default to off.
+This recovery applies only to initial connection failures, including network
+and ECI response errors. It does not suppress invalid settings, NTP failures
+when recording starts, or errors during recording. No fallback is offered
+after the device has recorded during the run.
+
+Builder stores requested/effective modes, fallback use, connection status, and
+failure messages in experiment metadata, under `netstation.<device name>.*`.
+The startup selection remains the requested choice, while `effective_mode`
+records whether the run actually used real hardware or dummy mode.
+
+Coder experiments can opt into the same prompt:
+
+```python
+from psychopy_egi_pynetstation import EGINetStation
+from psychopy_egi_pynetstation.startup import askConnectionFailure
+
+ns = EGINetStation()
+ns.setRunInfo(expInfo, "netstation")  # your ExperimentHandler's info dictionary
+ns.connect(onFailure=askConnectionFailure)
+```
+
+Without `onFailure`, connection errors raise without opening a dialog. For
+headless applications, supply your own callback `(error, ip, port)` returning
+`"retry"`, `"dummy"`, or `"abort"` if recovery is needed.
 
 ## Installation
 

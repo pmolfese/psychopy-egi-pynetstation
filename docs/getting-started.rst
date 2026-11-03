@@ -191,3 +191,60 @@ Before collecting data:
 * inspect ``ns.sessionSummary()`` in Coder experiments when deciding whether to
   accept a run; and
 * validate the workflow using non-production data on the actual lab network.
+
+
+Testing without an amplifier
+----------------------------
+
+Enable **Dummy mode — run without EEG hardware** in the EGI NetStation
+Device Manager settings, or in the legacy NetStation Init component. Leave
+your Start Recording, Send Event, and Stop Recording components in place.
+The setting defaults to off; turn it off again for real data collection.
+
+Python experiments can select the same mode with
+``EGINetStation(dummyMode=True)``. Calls use an offline backend: no network
+traffic or background sampling occurs, and drift-readiness waits return
+immediately with ``skipped=True`` and ``reason='dummy_mode'``. This does not
+mean that a real drift model is ready.
+
+Events are validated and counted as ``simulated_events`` in
+``sessionSummary()``; ``events_sent`` remains zero. No EEG, detailed marker
+log, or ECI error log is written. Clock methods use local monotonic time from
+the start of recording, so this mode tests experiment flow rather than
+hardware synchronization. A startup warning identifies dummy sessions.
+The normal Python dependencies are still required. A failed real connection
+never automatically enables dummy mode.
+
+
+Startup mode selection and connection recovery
+==================================================
+
+Both options below default to off and are available in Device Manager and the
+legacy Connect component (startup selection is also available in legacy Init).
+
+* **Choose EEG mode at startup** adds an **EEG mode (device name)** dropdown to
+  the participant/session dialog, before the device is created. Select
+  **Record EEG** or **Dummy — no EEG recorded**. The saved Dummy mode checkbox
+  supplies the default, including when the participant dialog is skipped.
+  The per-run choice never edits the saved device configuration.
+* **Ask after connection failure** offers an Action dropdown with **Abort**,
+  **Retry**, and **Continue without EEG**. Select an action and press OK.
+  Abort is the default; Cancel or closing the dialog also aborts. Retry uses
+  a fresh client after cleanup, and continuing switches to the dummy backend.
+
+Recovery covers expected network and ECI response failures during connection
+setup only. Invalid settings still raise. Amplifier NTP failures at recording
+start and mid-run failures are not converted into dummy sessions. Recovery is
+also disabled once the device has recorded during that run.
+
+Builder saves requested and effective modes, connection status, fallback use,
+and failure messages under ``netstation.<device name>.*`` in the experiment's
+info dictionary. The original startup choice is retained; the effective mode
+reflects a subsequent fallback.
+
+Coder scripts can call ``ns.setRunInfo(expInfo, "netstation")`` to attach the
+same metadata and pass ``onFailure=askConnectionFailure`` to ``ns.connect()``
+after importing that callback from ``psychopy_egi_pynetstation.startup``.
+Without a callback, connection errors raise without a dialog. Headless scripts
+can provide their own callback taking ``(error, ip, port)`` and returning
+``'retry'``, ``'dummy'``, or ``'abort'``.

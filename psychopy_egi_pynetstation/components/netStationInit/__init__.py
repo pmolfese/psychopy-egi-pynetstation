@@ -3,6 +3,7 @@ from pathlib import Path
 from psychopy.experiment.components import BaseComponent, Param, getInitVals
 
 from psychopy_egi_pynetstation.components._base import addNetStationDeviceLabel
+from psychopy_egi_pynetstation.components._startup import addStartupParams, addStartupField
 
 
 DEFAULT_NETSTATION_IP = "10.10.10.42"
@@ -28,7 +29,7 @@ class NetStationInitComponent(BaseComponent):
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationInit.png"
     tooltip = "NetStation Init: register a NetStation amplifier for use in this experiment"
-    version = "0.1.0"
+    version = "0.1.1"
     beta = False
 
     def __init__(
@@ -57,6 +58,9 @@ class NetStationInitComponent(BaseComponent):
         # testing
         disabled=False,
         driftWarmup=False,
+        dummyMode=False,
+        chooseAtStartup=False,
+        askOnFailure=False,
     ):
         BaseComponent.__init__(
             self, exp, parentName,
@@ -84,11 +88,18 @@ class NetStationInitComponent(BaseComponent):
 
         # --- Device params ---
         self.order += [
+            "dummyMode",
             "ip",
             "port",
             "ntpIP",
             "endian",
         ]
+        self.params["dummyMode"] = Param(
+            dummyMode, valType="bool", inputType="bool", categ="Device",
+            label="Dummy mode — run without EEG hardware",
+            hint="Run offline: no EEG is recorded and no markers are sent to hardware.",
+        )
+        addStartupParams(self, chooseAtStartup, askOnFailure)
         self.params['ip'] = Param(
             ip, valType="str", inputType="single", categ="Device",
             label="NetStation IP address",
@@ -360,6 +371,9 @@ class NetStationInitComponent(BaseComponent):
 
     # --- code generation ---
 
+    def writePreCode(self, buff):
+        addStartupField(self.exp, self.params['deviceLabel'].val, self.params)
+
     def writeInitCode(self, buff):
         """
         Register this Component's NetStation device with DeviceManager, if a device with
@@ -374,12 +388,22 @@ class NetStationInitComponent(BaseComponent):
             mode != "'off'" and bool(self.params['driftWarmup'])
         )
 
+        inits['dummyExpression'] = "%(dummyMode)s" % inits
+        if self.params['chooseAtStartup']:
+            inits['dummyExpression'] = (
+                "_nsResolveMode(expInfo, %(deviceLabel)s, dummyMode=%(dummyMode)s, chooseAtStartup=True)"
+            ) % inits
         code = (
+            "from psychopy_egi_pynetstation.startup import (\n"
+            "    resolveDummyMode as _nsResolveMode, askConnectionFailure as _nsAskFailure,\n"
+            ")\n"
             "if deviceManager.getDevice(%(deviceLabel)s) is None:\n"
             "    # initialise EGI NetStation device for %(name)s\n"
             "    deviceManager.addDevice(\n"
             "        deviceClass='psychopy_egi_pynetstation.hardware.netstation.EGINetStation',\n"
             "        deviceName=%(deviceLabel)s,\n"
+            "        dummyMode=%(dummyExpression)s,\n"
+            "        onConnectionFailure=_nsAskFailure if %(askOnFailure)s else None,\n"
             "        ip=%(ip)s,\n"
             "        port=%(port)s,\n"
             "        ntpIP=%(ntpIP)s or None,\n"
@@ -394,6 +418,7 @@ class NetStationInitComponent(BaseComponent):
             "        strictECI=%(strictECI)s,\n"
             "    )\n"
             "_%(name)sCleanupDevice = deviceManager.getDevice(%(deviceLabel)s)\n"
+            "_%(name)sCleanupDevice.setRunInfo(expInfo, %(deviceLabel)s)\n"
             "if _%(name)sCleanupDevice.close not in runAtExit:\n"
             "    runAtExit.append(_%(name)sCleanupDevice.close)\n"
         )

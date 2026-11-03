@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "psychopy-egi-pynetstation"
-version = "0.1.0"
+version = "0.1.1"
 description = "PsychoPy plugin adding support for EGI/Magstim NetStation EEG amplifiers via egi-pynetstation"
 readme = "README.md"
 requires-python = ">=3.10"

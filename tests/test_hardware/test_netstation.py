@@ -402,3 +402,175 @@ def test_high_resolution_capture_wrappers_delegate_upstream(device):
     assert timestamp == 4.25
     capture.assert_called_once_with()
     convert.assert_called_once_with(123.5)
+
+
+def test_dummy_full_session_never_constructs_real_client(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail('Dummy mode attempted to construct the real client')
+    monkeypatch.setattr('psychopy_egi_pynetstation.hardware.netstation.NetStation', forbidden)
+    ns = EGINetStation(dummyMode=True)
+    ns.connect()
+    ns.beginRecording()
+    assert ns.waitForDrift()['skipped']
+    # Exercise the same deferred invocation used by win.callOnFlip.
+    callback, args, kwargs = ns.sendEvent, (), {'eventType': 'stim'}
+    callback(*args, **kwargs)
+    ns.sendEvent('resp', start=ns.timeAtCapture(ns.captureTime()), wait=True)
+    assert ns.getTime() >= 0
+    assert ns.flushEvents()
+    assert ns.pendingEvents() == 0
+    assert ns.setStrictECI(True)
+    assert ns.logDisplayTiming(60, 1 / 60, 'measured') is False
+    ns.close()
+    ns.close()
+    assert not ns._connected and not ns._recording
+    assert ns.sessionSummary()['simulated_events'] == 2
+    assert ns.sessionSummary()['events_sent'] == 0
+    assert ns._sessionReported
+    ns.connect()
+    assert ns.sessionSummary()['simulated_events'] == 0
+    ns.close()
+
+
+def test_dummy_device_identity():
+    dummy = EGINetStation(dummyMode=True)
+    real = EGINetStation()
+    assert not dummy.isSameDevice(real)
+    assert not real.isSameDevice(dummy)
+    assert not dummy.isSameDevice({'ip': dummy.ip})
+    assert dummy.isSameDevice({'ip': dummy.ip, 'dummyMode': True})
+
+
+@pytest.fixture
+def failing_client(monkeypatch):
+    from unittest.mock import Mock
+    client = Mock()
+    client.connect.side_effect = ConnectionRefusedError('offline')
+    factory = Mock(return_value=client)
+    monkeypatch.setattr('psychopy_egi_pynetstation.hardware.netstation.NetStation', factory)
+    return client, factory
+
+
+def test_connection_failure_can_continue_in_dummy(failing_client):
+    from unittest.mock import Mock
+    client, factory = failing_client
+    ns = EGINetStation()
+    info = {}
+    ns.setRunInfo(info, 'eeg')
+    callback = Mock(return_value='dummy')
+    ns.connect(onFailure=callback)
+    assert ns.dummyMode and ns._connected
+    assert factory.call_count == 1
+    client._stop_auto_drift_thread.assert_called_once()
+    client._stop_event_sender.assert_called_once()
+    client._socket.disconnect.assert_called_once()
+    client.disconnect.assert_not_called()  # Exit could reconnect a closed socket
+    assert info['netstation.eeg.requested_mode'] == 'real'
+    assert info['netstation.eeg.effective_mode'] == 'dummy'
+    assert info['netstation.eeg.fallback_used']
+    ns.beginRecording()
+    ns.sendEvent('stim')
+    ns.close()
+    assert info['netstation.eeg.connection_status'] == 'disconnected'
+    assert ns.sessionSummary()['simulated_events'] == 1
+    assert ns.sessionSummary()['connection_failures'] == ['ConnectionRefusedError: offline']
+
+
+def test_retry_uses_fresh_client_and_preserves_settings(failing_client):
+    from unittest.mock import Mock
+    client, factory = failing_client
+    ns = EGINetStation(debug=True, strictECI=True)
+    replacement = Mock()
+    factory.return_value = replacement
+    ns.connect(onFailure=lambda *args: 'retry')
+    factory.assert_called_with(ns.ip, ns.port, endian='NTEL', debug=True, error_log=None)
+    assert replacement.connect.call_args.kwargs['strict_eci'] is True
+    assert not ns.dummyMode and ns._connected
+    ns._connected = False  # mock is not a real recording session
+    ns._sessionReported = True
+
+
+@pytest.mark.parametrize('action', [None, 'abort', 'bad'])
+def test_failure_without_recovery_or_with_abort_raises(failing_client, action):
+    client, factory = failing_client
+    ns = EGINetStation()
+    callback = None if action is None else lambda *args: action
+    expected = ValueError if action == 'bad' else ConnectionRefusedError
+    with pytest.raises(expected):
+        ns.connect(onFailure=callback)
+    assert not ns._connected and not ns.dummyMode
+    assert factory.call_count == 1
+    client._socket.disconnect.assert_called_once()
+
+
+def test_repeated_failure_can_retry_then_abort(failing_client):
+    from unittest.mock import Mock
+    client, factory = failing_client
+    ns = EGINetStation()
+    choices = Mock(side_effect=['retry', 'abort'])
+    with pytest.raises(ConnectionRefusedError):
+        ns.connect(onFailure=choices)
+    assert choices.call_count == 2
+    assert client._socket.disconnect.call_count == 2
+
+
+def test_programming_errors_are_not_offered_as_dummy_fallback(failing_client):
+    from unittest.mock import Mock
+    client, _ = failing_client
+    client.connect.side_effect = ValueError('bad settings')
+    ns = EGINetStation()
+    callback = Mock()
+    with pytest.raises(ValueError, match='bad settings'):
+        ns.connect(onFailure=callback)
+    callback.assert_not_called()
+
+
+def test_cleanup_failure_attempts_all_cleanup_and_prevents_recovery(failing_client):
+    from unittest.mock import Mock
+    client, _ = failing_client
+    client._stop_auto_drift_thread.side_effect = RuntimeError('cannot stop')
+    ns = EGINetStation()
+    callback = Mock(return_value='dummy')
+    with pytest.raises(RuntimeError, match='clean up'):
+        ns.connect(onFailure=callback)
+    client._stop_event_sender.assert_called_once()
+    client._socket.disconnect.assert_called_once()
+    callback.assert_not_called()
+
+
+def test_no_fallback_after_recording_has_started(failing_client):
+    from unittest.mock import Mock
+    client, _ = failing_client
+    ns = EGINetStation()
+    ns._everRecorded = True
+    callback = Mock(return_value='dummy')
+    with pytest.raises(ConnectionRefusedError):
+        ns.connect(onFailure=callback)
+    callback.assert_not_called()
+    assert not ns.dummyMode
+
+
+def test_start_recording_failure_does_not_switch_to_dummy(failing_client):
+    client, _ = failing_client
+    client.connect.side_effect = None
+    ns = EGINetStation()
+    ns.connect(onFailure=lambda *args: pytest.fail('must not prompt'))
+    client.begin_rec.side_effect = TimeoutError('NTP unavailable')
+    with pytest.raises(TimeoutError, match='NTP unavailable'):
+        ns.beginRecording()
+    assert not ns.dummyMode and not ns._recording
+    ns._connected = False
+    ns._sessionReported = True
+
+
+def test_explicit_dummy_does_not_prompt(monkeypatch):
+    ns = EGINetStation(dummyMode=True)
+    ns.connect(onFailure=lambda *args: pytest.fail('dummy must not prompt'))
+    ns.close()
+
+
+def test_constructor_recovery_callback_supports_legacy_init(failing_client):
+    ns = EGINetStation(onConnectionFailure=lambda *args: 'dummy')
+    ns.connect()
+    assert ns.dummyMode
+    ns.close()

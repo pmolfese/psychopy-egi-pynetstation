@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. The
 project uses semantic versioning after the initial `0.x` development series.
 
+## 0.1.1 - 2026-11-03
+
+### Added
+
+- Explicit offline dummy mode in Device Manager, legacy Init, and the Python
+  wrapper, with event validation, simulated marker counts, local clocks, and
+  immediate drift-wait skipping.
+- Optional per-device EEG mode selection in the experiment startup dialog.
+- Opt-in connection-failure recovery with Abort, Retry, and Continue without
+  EEG choices, safe failed-client cleanup, and requested/effective mode metadata.
+- Legacy Connect constructor support for dummy and startup/recovery settings.
+
 ## 0.1.0 - 2026-10-09
 
 ### Added

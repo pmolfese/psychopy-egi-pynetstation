@@ -26,7 +26,7 @@ class EgiStartRecordingComponent(
     iconFile = Path(__file__).parent / "netStationStartRecording.png"
     iconSVG = Path(__file__).parent / "light" / "netStationStartRecording.svg"
     tooltip = "EGI Start Recording: start EEG recording on a NetStation amplifier"
-    version = "0.1.0"
+    version = "0.1.1"
     beta = False
 
     def __init__(

@@ -10,6 +10,11 @@ from psychopy.hardware.base import BaseDevice
 from psychopy import logging
 
 from egi_pynetstation import NetStation
+from egi_pynetstation.exceptions import (
+    ECIResponseFailure, SocketException, SocketIncompleteTransmission,
+)
+
+from ._dummy import DummyNetStation
 
 
 DEFAULT_NETSTATION_IP = "10.10.10.42"
@@ -68,6 +73,14 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         calls. Asynchronous event sends still cannot raise into experiment
         code; their failures are collected for end-of-session reporting.
 
+    dummyMode : bool
+        Run offline without EEG hardware. No network connections or drift
+        sampling occur; events are validated and counted as simulated.
+
+    onConnectionFailure : callable or None
+        Optional default recovery callback, with the same contract as
+        ``connect(onFailure=...)``. None opens no dialogs.
+
     Notes
     -----
     Event sending is always asynchronous in egi-pynetstation >= 2.0.0:
@@ -114,7 +127,11 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         errorLog=None,
         strictECI=False,
         driftWarmup=False,
+        dummyMode=False,
+        onConnectionFailure=None,
     ):
+        self._onConnectionFailure = onConnectionFailure
+        self.dummyMode = bool(dummyMode)
         self.ip = ip
         # PsychoPy's numeric Builder params can arrive as floats (for example
         # 55513.0), while the socket API requires an integer port.
@@ -128,43 +145,130 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self.autoDriftMinPause = autoDriftMinPause
         self.autoDriftBackground = autoDriftBackground
         self.strictECI = strictECI
+        self._clientOptions = dict(endian=endian, debug=debug, error_log=errorLog)
+        self._runInfo = None
+        self._deviceLabel = 'netstation'
+        self._requestedDummyMode = self.dummyMode
+        self._connectionFailures = []
+        self._fallbackUsed = False
+        self._everRecorded = False
+        self._connectionStatus = 'initialized'
         self._connected = False
         self._recording = False
         self._sessionStarted = False
         self._sessionRecorded = False
         self._sessionReported = True
-        self._netstation = NetStation(
+        self._netstation = DummyNetStation() if self.dummyMode else NetStation(
             ip, self.port, endian=endian, debug=debug, error_log=errorLog
         )
 
     # --- connection ---
 
-    def connect(self, clock="ntp"):
-        """
-        Open the TCP/IP connection to NetStation, applying the drift
-        settings this device was created with.
+    def setRunInfo(self, expInfo, deviceLabel='netstation'):
+        """Attach per-device mode metadata to the experiment's info dictionary.
 
-        Parameters
-        ----------
-        clock : str
-            Clock sync method. Only "ntp" is implemented upstream.
+        Builder's ExperimentHandler shares this dictionary, so fallback updates
+        are included in saved experiment metadata as well as the startup choice.
         """
-        self._netstation.connect(
-            clock=clock,
-            ntp_ip=self.ntpIP,
-            drift_correction=self.driftCorrection,
-            drift_warmup=self.driftWarmup,
-            auto_drift=self.autoDrift,
-            auto_drift_interval=self.autoDriftInterval,
-            auto_drift_min_pause=self.autoDriftMinPause,
-            auto_drift_background=self.autoDriftBackground,
-            strict_eci=self.strictECI,
-        )
+        self._runInfo = expInfo
+        self._deviceLabel = deviceLabel
+        self._updateRunInfo()
+
+    def _updateRunInfo(self):
+        if self._runInfo is None:
+            return
+        prefix = f'netstation.{self._deviceLabel}.'
+        self._runInfo.update({
+            prefix + 'requested_mode': 'dummy' if self._requestedDummyMode else 'real',
+            prefix + 'effective_mode': 'dummy' if self.dummyMode else 'real',
+            prefix + 'connection_status': self._connectionStatus,
+            prefix + 'fallback_used': self._fallbackUsed,
+            prefix + 'connection_failures': list(self._connectionFailures),
+        })
+
+    def _discardFailedClient(self):
+        """Stop workers and close the socket without sending an ECI command.
+
+        Public disconnect sends Exit, which may reconnect an unopened socket.
+        These upstream cleanup primitives are deliberately isolated here and
+        covered by compatibility tests. Refuse recovery if cleanup fails.
+        """
+        errors = []
+        for cleanup in (
+            self._netstation._stop_auto_drift_thread,
+            self._netstation._stop_event_sender,
+            self._netstation._socket.disconnect,
+        ):
+            try:
+                cleanup()
+            except Exception as error:
+                errors.append(error)
+        self._netstation._connected = False
+        self._connected = False
+        self._recording = False
+        if errors:
+            raise RuntimeError('Could not clean up failed NetStation connection') from errors[0]
+
+    def connect(self, clock="ntp", onFailure=None):
+        """Connect, optionally asking a caller how to recover setup failures.
+
+        ``onFailure(error, ip, port)`` returns ``'retry'``, ``'dummy'``, or
+        ``'abort'``. Without a callback here or in the constructor (the
+        Coder/headless default), failures raise normally. Only network/ECI response failures during initial
+        connection are recoverable; recording and programming errors are not.
+        The optional UI callback is ``startup.askConnectionFailure``.
+        """
+        if onFailure is None:
+            onFailure = self._onConnectionFailure
+        if self._connected or self._recording:
+            raise RuntimeError('Disconnect NetStation before connecting again')
+        while True:
+            try:
+                self._netstation.connect(
+                    clock=clock,
+                    ntp_ip=self.ntpIP,
+                    drift_correction=self.driftCorrection,
+                    drift_warmup=self.driftWarmup,
+                    auto_drift=self.autoDrift,
+                    auto_drift_interval=self.autoDriftInterval,
+                    auto_drift_min_pause=self.autoDriftMinPause,
+                    auto_drift_background=self.autoDriftBackground,
+                    strict_eci=self.strictECI,
+                )
+            except (OSError, SocketException, SocketIncompleteTransmission, ECIResponseFailure) as error:
+                self._connectionFailures.append(f'{type(error).__name__}: {error}')
+                self._connectionStatus = 'failed'
+                self._updateRunInfo()
+                logging.error(f'NetStation connection failed at {self.ip}:{self.port}: {error}')
+                self._discardFailedClient()
+                # Never change to dummy mode after any recording in this run.
+                if onFailure is None or self._everRecorded:
+                    raise
+                action = onFailure(error, self.ip, self.port)
+                if action == 'abort':
+                    self._connectionStatus = 'aborted'
+                    self._updateRunInfo()
+                    raise
+                if action not in ('retry', 'dummy'):
+                    raise ValueError('Connection recovery must return retry, dummy, or abort') from error
+                if action == 'dummy':
+                    self._netstation = DummyNetStation()
+                    self.dummyMode = True
+                    self._fallbackUsed = True
+                else:
+                    self._netstation = NetStation(self.ip, self.port, **self._clientOptions)
+                continue
+            break
         self._connected = True
         self._sessionStarted = True
         self._sessionRecorded = False
         self._sessionReported = False
-        logging.info(f"Connected to NetStation at {self.ip}:{self.port}")
+        self._connectionStatus = 'connected'
+        self._updateRunInfo()
+        if self.dummyMode:
+            logging.warning("NetStation DUMMY MODE — no EEG recorded")
+        else:
+            logging.info(f"Connected to NetStation at {self.ip}:{self.port}")
 
     def disconnect(self):
         """
@@ -174,6 +278,8 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self._netstation.disconnect()
         self._connected = False
         self._recording = False
+        self._connectionStatus = 'disconnected'
+        self._updateRunInfo()
         self._reportSession()
 
     # --- recording ---
@@ -186,6 +292,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         self._netstation.begin_rec()
         self._recording = True
         self._sessionRecorded = True
+        self._everRecorded = True
 
     def endRecording(self):
         """
@@ -256,7 +363,7 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
                 f"{eciErrors[:3]}"
             )
 
-        if not self._sessionRecorded or not self.driftCorrection:
+        if self.dummyMode or not self._sessionRecorded or not self.driftCorrection:
             return
         if summary.get("drift_stalled"):
             logging.error("NetStation drift correction stalled during the session.")
@@ -357,7 +464,11 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         """
         One-call summary of event delivery, ECI responses, and clock health.
         """
-        return self._netstation.session_summary()
+        summary = self._netstation.session_summary()
+        if self._connectionFailures:
+            summary = dict(summary, connection_failures=list(self._connectionFailures),
+                           fallback_used=self._fallbackUsed)
+        return summary
 
     def setStrictECI(self, enabled=True):
         """
@@ -551,6 +662,8 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         Uses a private upstream helper, so it degrades to a no-op rather than
         raising if that helper ever goes away. Returns True if written.
         """
+        if self.dummyMode:
+            return False
         append = getattr(self._netstation, "_append_error_log", None)
         if append is None:
             logging.warning(
@@ -600,11 +713,12 @@ class EGINetStation(BaseDevice, aliases=["egi_netstation", "netstation"]):
         this object, based on IP address and port.
         """
         if isinstance(other, EGINetStation):
-            other = {"ip": other.ip, "port": other.port}
+            other = {"ip": other.ip, "port": other.port, "dummyMode": other.dummyMode}
         if isinstance(other, dict):
             return (
                 self.ip == other.get("ip", None)
                 and self.port == other.get("port", self.port)
+                and self.dummyMode == other.get("dummyMode", False)
             )
         return False
 

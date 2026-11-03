@@ -29,7 +29,7 @@ class EgiSendEventComponent(NetStationCommandComponent):
     iconFile = Path(__file__).parent / "netStationSendEvent.png"
     iconSVG = Path(__file__).parent / "light" / "netStationSendEvent.svg"
     tooltip = "EGI Send Event: send an event marker to a NetStation amplifier"
-    version = "0.1.0"
+    version = "0.1.1"
     beta = False
     commandMayBlock = False
 

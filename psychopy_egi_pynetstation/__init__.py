@@ -9,7 +9,7 @@ device (via `psychopy.hardware.DeviceManager`).
 still be imported in environments where PsychoPy itself is not installed.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = ["EGINetStation", "__version__"]
 

@@ -81,3 +81,10 @@ def test_async_send_is_not_reconfigurable():
         "should be setting it."
     )
     assert "wait" in inspect.signature(NetStation.send_event).parameters
+
+
+def test_upstream_supports_failure_cleanup_without_sending_commands():
+    client = NetStation('127.0.0.1', 55513)
+    assert callable(client._stop_auto_drift_thread)
+    assert callable(client._stop_event_sender)
+    assert callable(client._socket.disconnect)

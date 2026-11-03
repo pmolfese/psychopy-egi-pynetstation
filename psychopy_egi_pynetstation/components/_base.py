@@ -109,6 +109,16 @@ class NetStationCommandComponent(BaseDeviceComponent):
         )
         self.url = "https://github.com/pmolfese/psychopy-egi-pynetstation"
 
+    def writePreCode(self, buff):
+        from psychopy import prefs
+        from ._device import EGINetStationDeviceBackend
+        from ._startup import addStartupField
+
+        label = self.params['deviceLabel'].val
+        backend = prefs.devices.get(label)
+        if isinstance(backend, EGINetStationDeviceBackend):
+            addStartupField(self.exp, label, backend.params)
+
     def writeInitCode(self, buff):
         """
         Wrap the registered device in lifecycle state private to this Component.

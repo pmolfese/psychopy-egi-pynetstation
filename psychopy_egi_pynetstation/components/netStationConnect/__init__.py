@@ -25,7 +25,7 @@ class EgiConnectComponent(NetStationInitComponent):
     iconFile = Path(__file__).parent / "netStationConnect.png"
     iconSVG = Path(__file__).parent / "light" / "netStationConnect.svg"
     tooltip = "EGI Connect: configure and connect to a NetStation amplifier over TCP/IP"
-    version = "0.1.0"
+    version = "0.1.1"
     beta = False
     hidden = True
 
@@ -55,6 +55,9 @@ class EgiConnectComponent(NetStationInitComponent):
         # testing
         disabled=False,
         driftWarmup=False,
+        dummyMode=False,
+        chooseAtStartup=False,
+        askOnFailure=False,
     ):
         NetStationInitComponent.__init__(
             self, exp, parentName,
@@ -76,6 +79,9 @@ class EgiConnectComponent(NetStationInitComponent):
             errorLog=errorLog,
             strictECI=strictECI,
             disabled=disabled,
+            dummyMode=dummyMode,
+            chooseAtStartup=chooseAtStartup,
+            askOnFailure=askOnFailure,
         )
         self.type = "EgiConnect"
 
@@ -99,6 +105,8 @@ class EgiConnectComponent(NetStationInitComponent):
 
     def writeCommandCode(self, buff):
         code = "%(name)s.connect()\n"
+        if self.params['askOnFailure']:
+            code = "%(name)s.connect(onFailure=_nsAskFailure)\n"
         buff.writeIndentedLines(code % self.params)
 
     def writeFrameCode(self, buff):

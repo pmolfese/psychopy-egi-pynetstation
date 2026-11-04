@@ -19,7 +19,10 @@ Use the plugin in any of three ways: with three PsychoPy Studio or desktop
 Builder Components backed by Device Manager, by directly constructing the
 Python hardware wrapper, or through Device Manager from Coder.
 
-> **Version 0.1.1** adds explicit dummy mode, an optional startup EEG-mode
+> **Version 0.1.2** fixes Send Event Components remaining active after marker
+> dispatch, allowing Routines to finish.
+>
+> Version 0.1.1 adds explicit dummy mode, an optional startup EEG-mode
 > selector, and opt-in connection-failure recovery. Configure them in Device
 > Manager, or use `EGINetStation(dummyMode=True)` for an offline Python run.
 >

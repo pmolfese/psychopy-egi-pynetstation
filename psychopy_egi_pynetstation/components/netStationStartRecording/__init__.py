@@ -26,7 +26,7 @@ class EgiStartRecordingComponent(
     iconFile = Path(__file__).parent / "netStationStartRecording.png"
     iconSVG = Path(__file__).parent / "light" / "netStationStartRecording.svg"
     tooltip = "EGI Start Recording: start EEG recording on a NetStation amplifier"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
 
     def __init__(
@@ -114,6 +114,7 @@ class EgiStartRecordingComponent(
                 "    poll=%(driftWaitPoll)s,\n"
                 ")\n"
             )
+        code += "%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % inits)
 
 

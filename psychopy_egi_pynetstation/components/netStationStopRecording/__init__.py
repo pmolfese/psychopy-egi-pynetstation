@@ -18,7 +18,7 @@ class EgiStopRecordingComponent(NetStationCommandComponent):
     iconFile = Path(__file__).parent / "netStationStopRecording.png"
     iconSVG = Path(__file__).parent / "light" / "netStationStopRecording.svg"
     tooltip = "EGI Stop Recording: stop EEG recording on a NetStation amplifier"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
 
     def __init__(
@@ -45,7 +45,7 @@ class EgiStopRecordingComponent(NetStationCommandComponent):
         self.type = "EgiStopRecording"
 
     def writeCommandCode(self, buff):
-        code = "%(name)s.endRecording()\n"
+        code = "%(name)s.endRecording()\n%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % self.params)
 
 

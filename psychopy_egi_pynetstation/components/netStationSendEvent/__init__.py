@@ -29,7 +29,7 @@ class EgiSendEventComponent(NetStationCommandComponent):
     iconFile = Path(__file__).parent / "netStationSendEvent.png"
     iconSVG = Path(__file__).parent / "light" / "netStationSendEvent.svg"
     tooltip = "EGI Send Event: send an event marker to a NetStation amplifier"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
     commandMayBlock = False
 
@@ -219,6 +219,8 @@ class EgiSendEventComponent(NetStationCommandComponent):
                 "    %(name)s.sendEvent,\n"
                 + args +
                 ")\n"
+                # Keep this component active until the flip has sent the event.
+                "win.callOnFlip(setattr, %(name)s, 'status', FINISHED)\n"
             )
         else:
             code = (
@@ -226,6 +228,7 @@ class EgiSendEventComponent(NetStationCommandComponent):
                 "    start='now',\n"
                 + args +
                 ")\n"
+                "%(name)s.status = FINISHED\n"
             )
         buff.writeIndentedLines(code % inits)
 

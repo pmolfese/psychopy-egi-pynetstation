@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file. The
 project uses semantic versioning after the initial `0.x` development series.
 
+## 0.1.2 - 2026-11-04
+
+### Fixed
+
+- Start Recording, Stop Recording, and legacy Connect/Disconnect Components
+  now become `FINISHED` after their command completes (including any requested
+  drift wait), so they do not keep a Routine running.
+- Send Event Components now become `FINISHED` after dispatching their marker,
+  so they do not keep a Routine running. Flip-synchronized markers finish on
+  the sending flip, including markers bound to a visual Component.
+
 ## 0.1.1 - 2026-11-03
 
 ### Added

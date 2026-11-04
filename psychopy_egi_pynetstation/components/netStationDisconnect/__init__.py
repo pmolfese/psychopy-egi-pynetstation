@@ -16,7 +16,7 @@ class EgiDisconnectComponent(NetStationCommandComponent):
     iconFile = Path(__file__).parent / "netStationDisconnect.png"
     iconSVG = Path(__file__).parent / "light" / "netStationDisconnect.svg"
     tooltip = "EGI Disconnect: close the connection to a NetStation amplifier"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
     hidden = True
 
@@ -44,7 +44,7 @@ class EgiDisconnectComponent(NetStationCommandComponent):
         self.type = "EgiDisconnect"
 
     def writeCommandCode(self, buff):
-        code = "%(name)s.disconnect()\n"
+        code = "%(name)s.disconnect()\n%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % self.params)
 
 

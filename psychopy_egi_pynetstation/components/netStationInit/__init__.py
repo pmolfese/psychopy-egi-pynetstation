@@ -29,7 +29,7 @@ class NetStationInitComponent(BaseComponent):
     targets = ['PsychoPy']
     iconFile = Path(__file__).parent / "netStationInit.png"
     tooltip = "NetStation Init: register a NetStation amplifier for use in this experiment"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
 
     def __init__(

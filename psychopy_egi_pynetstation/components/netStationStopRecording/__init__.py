@@ -18,7 +18,7 @@ class EgiStopRecordingComponent(NetStationCommandComponent):
     iconFile = Path(__file__).parent / "netStationStopRecording.png"
     iconSVG = Path(__file__).parent / "light" / "netStationStopRecording.svg"
     tooltip = "EGI Stop Recording: stop EEG recording on a NetStation amplifier"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
 
     def __init__(

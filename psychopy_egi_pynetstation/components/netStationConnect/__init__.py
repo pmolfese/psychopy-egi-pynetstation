@@ -25,7 +25,7 @@ class EgiConnectComponent(NetStationInitComponent):
     iconFile = Path(__file__).parent / "netStationConnect.png"
     iconSVG = Path(__file__).parent / "light" / "netStationConnect.svg"
     tooltip = "EGI Connect: configure and connect to a NetStation amplifier over TCP/IP"
-    version = "0.1.1"
+    version = "0.1.2"
     beta = False
     hidden = True
 

@@ -320,6 +320,49 @@ def test_device_backend_clarifies_endian_options():
     assert "legacy big-endian" in hint
 
 
+@pytest.mark.parametrize("component,options,expected", [
+    (EgiConnectComponent, {}, ["connect"]),
+    (EgiConnectComponent, {"askOnFailure": True}, ["connect"]),
+    (EgiDisconnectComponent, {}, ["disconnect"]),
+    (EgiStartRecordingComponent, {}, ["beginRecording"]),
+    (EgiStartRecordingComponent, {"waitForDrift": True},
+     ["beginRecording", "waitForDrift"]),
+    (EgiStopRecordingComponent, {}, ["endRecording"]),
+])
+@pytest.mark.parametrize("fails", [False, True])
+def test_one_shot_commands_finish_only_after_success(routine, component, options, expected, fails):
+    from types import SimpleNamespace
+    from psychopy_egi_pynetstation.component_state import NetStationComponentState
+
+    comp = component(routine.exp, routine.name, name="command", **options)
+    buff = IndentingBuffer()
+    comp.writeCommandCode(buff)
+    calls = []
+
+    def record(name):
+        def run(**kwargs):
+            assert command.status == "STARTED"
+            calls.append(name)
+            if fails and name == expected[-1]:
+                raise RuntimeError("command failed")
+        return run
+
+    device = SimpleNamespace(**{name: record(name) for name in expected})
+    command = NetStationComponentState(device, status="STARTED")
+    namespace = {
+        "command": command, "FINISHED": "FINISHED", "_nsAskFailure": object(),
+        "logging": SimpleNamespace(info=lambda message: None),
+    }
+    if fails:
+        with pytest.raises(RuntimeError, match="command failed"):
+            exec(buff.getvalue(), namespace)
+        assert command.status == "STARTED"
+    else:
+        exec(buff.getvalue(), namespace)
+        assert command.status == "FINISHED"
+    assert calls == expected
+
+
 def test_disconnect_component_writes_disconnect_call(routine):
     comp = EgiDisconnectComponent(
         routine.exp, routine.name,

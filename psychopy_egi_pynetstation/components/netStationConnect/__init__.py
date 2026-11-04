@@ -107,6 +107,7 @@ class EgiConnectComponent(NetStationInitComponent):
         code = "%(name)s.connect()\n"
         if self.params['askOnFailure']:
             code = "%(name)s.connect(onFailure=_nsAskFailure)\n"
+        code += "%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % self.params)
 
     def writeFrameCode(self, buff):

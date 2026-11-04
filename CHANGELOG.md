@@ -7,6 +7,9 @@ project uses semantic versioning after the initial `0.x` development series.
 
 ### Fixed
 
+- Start Recording, Stop Recording, and legacy Connect/Disconnect Components
+  now become `FINISHED` after their command completes (including any requested
+  drift wait), so they do not keep a Routine running.
 - Send Event Components now become `FINISHED` after dispatching their marker,
   so they do not keep a Routine running. Flip-synchronized markers finish on
   the sending flip, including markers bound to a visual Component.

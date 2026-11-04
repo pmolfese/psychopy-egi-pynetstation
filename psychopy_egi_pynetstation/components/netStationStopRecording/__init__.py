@@ -45,7 +45,7 @@ class EgiStopRecordingComponent(NetStationCommandComponent):
         self.type = "EgiStopRecording"
 
     def writeCommandCode(self, buff):
-        code = "%(name)s.endRecording()\n"
+        code = "%(name)s.endRecording()\n%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % self.params)
 
 

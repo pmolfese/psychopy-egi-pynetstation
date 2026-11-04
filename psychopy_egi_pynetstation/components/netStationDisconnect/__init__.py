@@ -44,7 +44,7 @@ class EgiDisconnectComponent(NetStationCommandComponent):
         self.type = "EgiDisconnect"
 
     def writeCommandCode(self, buff):
-        code = "%(name)s.disconnect()\n"
+        code = "%(name)s.disconnect()\n%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % self.params)
 
 

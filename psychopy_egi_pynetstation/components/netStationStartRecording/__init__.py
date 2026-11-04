@@ -114,6 +114,7 @@ class EgiStartRecordingComponent(
                 "    poll=%(driftWaitPoll)s,\n"
                 ")\n"
             )
+        code += "%(name)s.status = FINISHED\n"
         buff.writeIndentedLines(code % inits)
 
 
